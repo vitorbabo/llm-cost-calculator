@@ -12,6 +12,19 @@ const Calculator = {
    * @returns {Object} Cost breakdown
    */
   calculateRequestCost(model, inputTokens, outputTokens) {
+    // For PTU pricing, cost per request is not applicable
+    // PTU is a fixed monthly cost regardless of usage
+    if (model.pricing_type === 'PTU') {
+      return {
+        inputCost: 0,
+        outputCost: 0,
+        totalCost: 0,
+        inputTokens,
+        outputTokens,
+        isPTU: true
+      };
+    }
+
     const inputCost = (inputTokens / 1000000) * model.input_price_per_1m;
     const outputCost = (outputTokens / 1000000) * model.output_price_per_1m;
     const totalCost = inputCost + outputCost;
@@ -21,7 +34,8 @@ const Calculator = {
       outputCost,
       totalCost,
       inputTokens,
-      outputTokens
+      outputTokens,
+      isPTU: false
     };
   },
 
@@ -30,9 +44,10 @@ const Calculator = {
    * @param {Object} requestCost - Single request cost
    * @param {number} requestsPerMinute - Number of requests per minute
    * @param {string} timeframe - 'minute', 'hour', or 'day'
+   * @param {Object} model - Model data (needed for PTU pricing)
    * @returns {Object} Cost breakdown with totals
    */
-  calculateTotalCost(requestCost, requestsPerMinute, timeframe = 'minute') {
+  calculateTotalCost(requestCost, requestsPerMinute, timeframe = 'minute', model = null) {
     let multiplier = 1;
     let period = 'minute';
 
@@ -57,6 +72,43 @@ const Calculator = {
     const totalRequests = requestsPerMinute * multiplier;
     const totalInputTokens = requestCost.inputTokens * totalRequests;
     const totalOutputTokens = requestCost.outputTokens * totalRequests;
+
+    // Handle PTU pricing
+    if (requestCost.isPTU && model && model.ptu_price_monthly) {
+      const ptuMonthlyPrice = parseFloat(model.ptu_price_monthly) || 0;
+      let totalCost = ptuMonthlyPrice;
+
+      // Prorate PTU cost based on timeframe
+      switch (timeframe) {
+        case 'minute':
+          totalCost = ptuMonthlyPrice / (30 * 24 * 60);
+          break;
+        case 'hour':
+          totalCost = ptuMonthlyPrice / (30 * 24);
+          break;
+        case 'day':
+          totalCost = ptuMonthlyPrice / 30;
+          break;
+        case 'month':
+          totalCost = ptuMonthlyPrice;
+          break;
+      }
+
+      return {
+        period,
+        totalRequests,
+        totalInputTokens,
+        totalOutputTokens,
+        totalInputCost: 0,
+        totalOutputCost: 0,
+        totalCost,
+        costPerRequest: totalRequests > 0 ? totalCost / totalRequests : 0,
+        isPTU: true,
+        ptuMonthlyPrice
+      };
+    }
+
+    // Handle PAYG pricing
     const totalInputCost = requestCost.inputCost * totalRequests;
     const totalOutputCost = requestCost.outputCost * totalRequests;
     const totalCost = requestCost.totalCost * totalRequests;
@@ -69,7 +121,8 @@ const Calculator = {
       totalInputCost,
       totalOutputCost,
       totalCost,
-      costPerRequest: requestCost.totalCost
+      costPerRequest: requestCost.totalCost,
+      isPTU: false
     };
   },
 
@@ -205,7 +258,8 @@ const Calculator = {
       const totalCost = this.calculateTotalCost(
         requestCost,
         comp.requestsPerMinute,
-        comp.timeframe
+        comp.timeframe,
+        comp.model  // Pass model for PTU pricing
       );
 
       const validation = this.validateQuotas(
