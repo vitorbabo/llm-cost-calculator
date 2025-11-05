@@ -73,20 +73,6 @@
           <!-- Providers will be dynamically loaded here -->
         </div>
 
-        <!-- Timeframe Selector -->
-        <div class="flex flex-col gap-2">
-          <label class="flex flex-col gap-2">
-            <p class="text-sm font-medium">Calculate Cost For</p>
-            <select id="timeframe-select" class="form-select w-full rounded-lg border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark focus:ring-primary focus:border-primary">
-              <option value="minute">Per Minute</option>
-              <option value="hour" selected>Per Hour</option>
-              <option value="day">Per Day</option>
-              <option value="month">Per Month</option>
-              <option value="total">Total Requests</option>
-            </select>
-          </label>
-        </div>
-
         <!-- Action Buttons -->
         <div class="flex gap-4">
           <button id="calculate-btn" class="flex-1 text-white bg-primary hover:bg-primary/90 focus:ring-4 focus:ring-primary/30 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors">
@@ -105,7 +91,45 @@
           </button>
           <div id="advanced-panel" class="hidden mt-4 p-4 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
             <h3 class="font-medium mb-4">Advanced Options</h3>
-            <div class="space-y-4 text-sm">
+            <div class="space-y-4">
+              <!-- Timeframe Selector -->
+              <div class="flex flex-col gap-2">
+                <label class="flex flex-col gap-2">
+                  <p class="text-sm font-medium">Calculate Cost For</p>
+                  <select id="timeframe-select" class="form-select w-full rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary">
+                    <option value="minute">Per Minute</option>
+                    <option value="hour" selected>Per Hour</option>
+                    <option value="day">Per Day</option>
+                    <option value="month">Per Month</option>
+                    <option value="total">Total Requests</option>
+                  </select>
+                </label>
+              </div>
+
+              <!-- Global Unit Settings -->
+              <div class="p-3 bg-background-light dark:bg-background-dark rounded-lg">
+                <p class="font-medium mb-3">Input/Output Units</p>
+                <div class="grid grid-cols-2 gap-3">
+                  <label class="flex flex-col gap-2">
+                    <p class="text-xs font-medium text-text-light/70 dark:text-text-dark/70">Input Unit</p>
+                    <select id="global-input-unit" class="form-select text-sm rounded-lg border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark focus:ring-primary focus:border-primary">
+                      <option value="tokens">Tokens</option>
+                      <option value="chars">Characters</option>
+                      <option value="words">Words</option>
+                    </select>
+                  </label>
+                  <label class="flex flex-col gap-2">
+                    <p class="text-xs font-medium text-text-light/70 dark:text-text-dark/70">Output Unit</p>
+                    <select id="global-output-unit" class="form-select text-sm rounded-lg border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark focus:ring-primary focus:border-primary">
+                      <option value="tokens">Tokens</option>
+                      <option value="chars">Characters</option>
+                      <option value="words">Words</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Info Sections -->
               <div class="p-3 bg-background-light dark:bg-background-dark rounded-lg">
                 <p class="font-medium mb-2">Rate Limits</p>
                 <p class="text-text-light/60 dark:text-text-dark/60 text-xs">
