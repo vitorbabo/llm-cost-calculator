@@ -68,6 +68,11 @@
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
       <!-- Left Column: Inputs -->
       <div class="lg:col-span-2 flex flex-col gap-6">
+        <!-- Provider Accordions (dynamically populated) -->
+        <div id="providers-container" class="flex flex-col gap-3">
+          <!-- Providers will be dynamically loaded here -->
+        </div>
+
         <!-- Timeframe Selector -->
         <div class="flex flex-col gap-2">
           <label class="flex flex-col gap-2">
@@ -77,17 +82,13 @@
               <option value="hour" selected>Per Hour</option>
               <option value="day">Per Day</option>
               <option value="month">Per Month</option>
+              <option value="total">Total Requests</option>
             </select>
           </label>
         </div>
 
-        <!-- Provider Accordions (dynamically populated) -->
-        <div id="providers-container" class="flex flex-col gap-3">
-          <!-- Providers will be dynamically loaded here -->
-        </div>
-
         <!-- Action Buttons -->
-        <div class="flex gap-4 mt-4">
+        <div class="flex gap-4">
           <button id="calculate-btn" class="flex-1 text-white bg-primary hover:bg-primary/90 focus:ring-4 focus:ring-primary/30 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors">
             Calculate
           </button>

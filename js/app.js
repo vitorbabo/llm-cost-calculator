@@ -21,6 +21,7 @@ const App = {
       // Setup UI components
       this.setupDarkMode();
       this.setupProviderAccordions();
+      this.updateRequestsLabels(); // Set initial labels based on default timeframe
       this.setupEventListeners();
 
       // Initialize with default comparison
@@ -190,7 +191,7 @@ const App = {
 
             <!-- Requests per Minute -->
             <label class="flex flex-col gap-2">
-              <p class="text-sm font-medium">Requests per Minute</p>
+              <p class="text-sm font-medium requests-label">Requests per Minute</p>
               <input class="rpm-input form-input w-full rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"
                      type="number"
                      value="60"
@@ -226,6 +227,7 @@ const App = {
     // Timeframe selector
     document.getElementById('timeframe-select')?.addEventListener('change', (e) => {
       this.currentTimeframe = e.target.value;
+      this.updateRequestsLabels();
       this.calculate();
     });
 
@@ -316,6 +318,36 @@ const App = {
     document.getElementById('advanced-toggle')?.addEventListener('click', () => {
       const panel = document.getElementById('advanced-panel');
       panel.classList.toggle('hidden');
+    });
+  },
+
+  /**
+   * Update requests field labels based on timeframe
+   */
+  updateRequestsLabels() {
+    const labels = document.querySelectorAll('.requests-label');
+    let labelText = 'Requests per Minute';
+
+    switch (this.currentTimeframe) {
+      case 'minute':
+        labelText = 'Requests per Minute';
+        break;
+      case 'hour':
+        labelText = 'Requests per Hour';
+        break;
+      case 'day':
+        labelText = 'Requests per Day';
+        break;
+      case 'month':
+        labelText = 'Requests per Month';
+        break;
+      case 'total':
+        labelText = 'Total Requests';
+        break;
+    }
+
+    labels.forEach(label => {
+      label.textContent = labelText;
     });
   },
 
@@ -485,7 +517,11 @@ const App = {
     }
 
     timeframeLabelEls.forEach(el => {
-      el.textContent = `/ ${cheapest.totalCost.period}`;
+      if (cheapest.totalCost.period === 'total') {
+        el.textContent = '(total)';
+      } else {
+        el.textContent = `/ ${cheapest.totalCost.period}`;
+      }
     });
   },
 
