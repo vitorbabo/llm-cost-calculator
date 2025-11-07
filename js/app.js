@@ -7,6 +7,8 @@ const App = {
   models: [],
   comparisons: [],
   currentTimeframe: 'hour',
+  globalInputUnit: 'tokens',
+  globalOutputUnit: 'tokens',
 
   /**
    * Initialize the application
@@ -21,6 +23,8 @@ const App = {
       // Setup UI components
       this.setupDarkMode();
       this.setupProviderAccordions();
+      this.updateUnitLabels(); // Set initial unit labels
+      this.updateRequestsLabels(); // Set initial request labels based on default timeframe
       this.setupEventListeners();
 
       // Initialize with default comparison
@@ -122,18 +126,7 @@ const App = {
               </select>
             </label>
 
-            <!-- Input Unit Selection -->
-            <label class="flex flex-col gap-2">
-              <p class="text-sm font-medium">Input Unit</p>
-              <select class="input-unit-select form-select w-full rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark"
-                      data-provider="${provider}">
-                <option value="tokens">Tokens</option>
-                <option value="chars">Characters</option>
-                <option value="words">Words</option>
-              </select>
-            </label>
-
-            <!-- Input Tokens/Chars/Words -->
+            <!-- Input Value -->
             <div class="@container">
               <div class="relative flex w-full flex-col items-start justify-between gap-3">
                 <div class="flex w-full items-center justify-between">
@@ -155,18 +148,7 @@ const App = {
               </div>
             </div>
 
-            <!-- Output Unit Selection -->
-            <label class="flex flex-col gap-2">
-              <p class="text-sm font-medium">Output Unit</p>
-              <select class="output-unit-select form-select w-full rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark"
-                      data-provider="${provider}">
-                <option value="tokens">Tokens</option>
-                <option value="chars">Characters</option>
-                <option value="words">Words</option>
-              </select>
-            </label>
-
-            <!-- Output Tokens/Chars/Words -->
+            <!-- Output Value -->
             <div class="@container">
               <div class="relative flex w-full flex-col items-start justify-between gap-3">
                 <div class="flex w-full items-center justify-between">
@@ -188,9 +170,9 @@ const App = {
               </div>
             </div>
 
-            <!-- Requests per Minute -->
+            <!-- Requests -->
             <label class="flex flex-col gap-2">
-              <p class="text-sm font-medium">Requests per Minute</p>
+              <p class="text-sm font-medium requests-label">Requests per Minute</p>
               <input class="rpm-input form-input w-full rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"
                      type="number"
                      value="60"
@@ -226,6 +208,7 @@ const App = {
     // Timeframe selector
     document.getElementById('timeframe-select')?.addEventListener('change', (e) => {
       this.currentTimeframe = e.target.value;
+      this.updateRequestsLabels();
       this.calculate();
     });
 
@@ -287,35 +270,77 @@ const App = {
       }
     });
 
-    // Unit selection changes
-    document.addEventListener('change', (e) => {
-      if (e.target.classList.contains('input-unit-select')) {
-        const provider = e.target.dataset.provider;
-        const details = document.getElementById(`provider-${provider.toLowerCase().replace(/\s+/g, '-')}`);
-        const unit = e.target.value;
-        const label = details.querySelector('.input-unit-label');
+    // Global unit selection changes
+    document.getElementById('global-input-unit')?.addEventListener('change', (e) => {
+      this.globalInputUnit = e.target.value;
+      this.updateUnitLabels();
+      // Recalculate all comparisons with new units
+      document.querySelectorAll('.provider-enable:checked').forEach(checkbox => {
+        this.updateComparisonFromUI(checkbox.dataset.provider);
+      });
+      this.calculate();
+    });
 
-        label.textContent = unit.charAt(0).toUpperCase() + unit.slice(1);
-        this.updateComparisonFromUI(provider);
-        this.calculate();
-      }
-
-      if (e.target.classList.contains('output-unit-select')) {
-        const provider = e.target.dataset.provider;
-        const details = document.getElementById(`provider-${provider.toLowerCase().replace(/\s+/g, '-')}`);
-        const unit = e.target.value;
-        const label = details.querySelector('.output-unit-label');
-
-        label.textContent = unit.charAt(0).toUpperCase() + unit.slice(1);
-        this.updateComparisonFromUI(provider);
-        this.calculate();
-      }
+    document.getElementById('global-output-unit')?.addEventListener('change', (e) => {
+      this.globalOutputUnit = e.target.value;
+      this.updateUnitLabels();
+      // Recalculate all comparisons with new units
+      document.querySelectorAll('.provider-enable:checked').forEach(checkbox => {
+        this.updateComparisonFromUI(checkbox.dataset.provider);
+      });
+      this.calculate();
     });
 
     // Advanced settings toggle
     document.getElementById('advanced-toggle')?.addEventListener('click', () => {
       const panel = document.getElementById('advanced-panel');
       panel.classList.toggle('hidden');
+    });
+  },
+
+  /**
+   * Update unit labels for all inputs/outputs
+   */
+  updateUnitLabels() {
+    const inputLabel = this.globalInputUnit.charAt(0).toUpperCase() + this.globalInputUnit.slice(1);
+    const outputLabel = this.globalOutputUnit.charAt(0).toUpperCase() + this.globalOutputUnit.slice(1);
+
+    document.querySelectorAll('.input-unit-label').forEach(el => {
+      el.textContent = inputLabel;
+    });
+
+    document.querySelectorAll('.output-unit-label').forEach(el => {
+      el.textContent = outputLabel;
+    });
+  },
+
+  /**
+   * Update requests field labels based on timeframe
+   */
+  updateRequestsLabels() {
+    const labels = document.querySelectorAll('.requests-label');
+    let labelText = 'Requests per Minute';
+
+    switch (this.currentTimeframe) {
+      case 'minute':
+        labelText = 'Requests per Minute';
+        break;
+      case 'hour':
+        labelText = 'Requests per Hour';
+        break;
+      case 'day':
+        labelText = 'Requests per Day';
+        break;
+      case 'month':
+        labelText = 'Requests per Month';
+        break;
+      case 'total':
+        labelText = 'Total Requests';
+        break;
+    }
+
+    labels.forEach(label => {
+      label.textContent = labelText;
     });
   },
 
@@ -362,8 +387,6 @@ const App = {
     const inputValue = parseInt(details.querySelector('.input-value').value) || 0;
     const outputValue = parseInt(details.querySelector('.output-value').value) || 0;
     const rpmInput = parseInt(details.querySelector('.rpm-input').value) || 1;
-    const inputUnit = details.querySelector('.input-unit-select').value;
-    const outputUnit = details.querySelector('.output-unit-select').value;
 
     const model = this.models.find(m =>
       m.provider === provider && m.model === modelSelect.value
@@ -371,9 +394,9 @@ const App = {
 
     if (!model) return;
 
-    // Convert to tokens
-    const inputTokens = Utils.toTokens(inputValue, inputUnit);
-    const outputTokens = Utils.toTokens(outputValue, outputUnit);
+    // Convert to tokens using global units
+    const inputTokens = Utils.toTokens(inputValue, this.globalInputUnit);
+    const outputTokens = Utils.toTokens(outputValue, this.globalOutputUnit);
 
     // Update or add comparison
     const existingIndex = this.comparisons.findIndex(c => c.model.provider === provider);
@@ -485,7 +508,11 @@ const App = {
     }
 
     timeframeLabelEls.forEach(el => {
-      el.textContent = `/ ${cheapest.totalCost.period}`;
+      if (cheapest.totalCost.period === 'total') {
+        el.textContent = '(total)';
+      } else {
+        el.textContent = `/ ${cheapest.totalCost.period}`;
+      }
     });
   },
 

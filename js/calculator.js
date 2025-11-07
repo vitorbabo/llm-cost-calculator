@@ -51,6 +51,7 @@ const Calculator = {
     let multiplier = 1;
     let period = 'minute';
 
+    // Handle different timeframes
     switch (timeframe) {
       case 'hour':
         multiplier = 60;
@@ -64,12 +65,18 @@ const Calculator = {
         multiplier = 60 * 24 * 30;
         period = 'month';
         break;
+      case 'total':
+        multiplier = 1;
+        period = 'total';
+        break;
+      case 'minute':
       default:
         multiplier = 1;
         period = 'minute';
     }
 
-    const totalRequests = requestsPerMinute * multiplier;
+    // For "total" mode, requestsPerMinute is actually the total number of requests
+    const totalRequests = timeframe === 'total' ? requestsPerMinute : requestsPerMinute * multiplier;
     const totalInputTokens = requestCost.inputTokens * totalRequests;
     const totalOutputTokens = requestCost.outputTokens * totalRequests;
 
@@ -79,6 +86,7 @@ const Calculator = {
       let totalCost = ptuMonthlyPrice;
 
       // Prorate PTU cost based on timeframe
+      // For "total" mode, we can't prorate PTU since it's a fixed monthly cost
       switch (timeframe) {
         case 'minute':
           totalCost = ptuMonthlyPrice / (30 * 24 * 60);
@@ -92,6 +100,11 @@ const Calculator = {
         case 'month':
           totalCost = ptuMonthlyPrice;
           break;
+        case 'total':
+          // For total requests, we can't determine the timeframe, so show N/A
+          // PTU pricing doesn't work well with absolute request counts
+          totalCost = 0;
+          break;
       }
 
       return {
@@ -102,9 +115,10 @@ const Calculator = {
         totalInputCost: 0,
         totalOutputCost: 0,
         totalCost,
-        costPerRequest: totalRequests > 0 ? totalCost / totalRequests : 0,
+        costPerRequest: totalRequests > 0 && timeframe !== 'total' ? totalCost / totalRequests : 0,
         isPTU: true,
-        ptuMonthlyPrice
+        ptuMonthlyPrice,
+        isTotal: timeframe === 'total'
       };
     }
 
@@ -122,7 +136,8 @@ const Calculator = {
       totalOutputCost,
       totalCost,
       costPerRequest: requestCost.totalCost,
-      isPTU: false
+      isPTU: false,
+      isTotal: timeframe === 'total'
     };
   },
 
