@@ -1229,28 +1229,17 @@ const App = {
 
       let statusIcon = '';
       let statusColor = '';
-      let warningText = '';
 
       if (hasErrors) {
         statusIcon = 'error';
         statusColor = 'text-red-600 dark:text-red-400';
-        const errorMessages = result.validation.warnings
-          .filter(w => w.severity === 'error')
-          .map(w => w.message)
-          .join('\n');
-        warningText = errorMessages;
       } else if (hasWarnings) {
         statusIcon = 'warning';
         statusColor = 'text-yellow-600 dark:text-yellow-400';
-        const warningMessages = result.validation.warnings
-          .filter(w => w.severity === 'warning')
-          .map(w => w.message)
-          .join('\n');
-        warningText = warningMessages;
       }
 
       const statusIconHtml = (hasErrors || hasWarnings) ?
-        `<span class="material-symbols-outlined text-base ${statusColor} warning-tooltip" data-warning="${warningText}">${statusIcon}</span>` : '';
+        `<span class="material-symbols-outlined text-base ${statusColor}">${statusIcon}</span>` : '';
 
       // Calculate quota usage
       const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
