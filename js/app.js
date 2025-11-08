@@ -667,27 +667,37 @@ const App = {
       const hasWarnings = result.validation.warnings.some(w => w.severity === 'warning');
 
       let statusIcon = '';
-      let statusText = '';
       let statusColor = '';
+      let warningText = '';
 
       if (hasErrors) {
         statusIcon = 'error';
-        statusText = 'Exceeded';
         statusColor = 'text-red-600 dark:text-red-400';
+        const errorMessages = result.validation.warnings
+          .filter(w => w.severity === 'error')
+          .map(w => w.message)
+          .join('\n');
+        warningText = errorMessages;
       } else if (hasWarnings) {
         statusIcon = 'warning';
-        statusText = 'Warning';
         statusColor = 'text-yellow-600 dark:text-yellow-400';
-      } else {
-        statusIcon = 'check_circle';
-        statusText = 'OK';
-        statusColor = 'text-green-600 dark:text-green-400';
+        const warningMessages = result.validation.warnings
+          .filter(w => w.severity === 'warning')
+          .map(w => w.message)
+          .join('\n');
+        warningText = warningMessages;
       }
+
+      const statusIconHtml = (hasErrors || hasWarnings) ?
+        `<span class="material-symbols-outlined text-base ${statusColor} warning-tooltip" data-warning="${warningText}">${statusIcon}</span>` : '';
 
       return `
         <tr class="border-b border-border-light dark:border-border-dark">
           <th class="px-6 py-4 font-medium whitespace-nowrap ${opacity}" scope="row">
-            <span class="model-tooltip" data-provider="${result.model.provider}">${result.model.model}</span>
+            <div class="model-name-wrapper">
+              ${statusIconHtml}
+              <span class="model-tooltip" data-provider="${result.model.provider}">${result.model.model}</span>
+            </div>
           </th>
           <td class="px-6 py-4 ${opacity}">${Utils.formatNumber(result.model.context_window)}</td>
           <td class="px-6 py-4 ${opacity}">
@@ -695,12 +705,6 @@ const App = {
           </td>
           <td class="px-6 py-4 ${opacity}">
             ${Utils.formatNumber(result.totalCost.totalInputTokens)} / ${Utils.formatNumber(result.totalCost.totalOutputTokens)}
-          </td>
-          <td class="px-6 py-4 ${opacity}">
-            <div class="flex items-center gap-2 ${statusColor}">
-              <span class="material-symbols-outlined text-sm">${statusIcon}</span>
-              <span class="text-xs">${statusText}</span>
-            </div>
           </td>
           <td class="px-6 py-4 text-right font-medium ${opacity}">
             ${isEnabled ? Utils.formatCurrency(result.totalCost.totalCost) : '-'}
@@ -829,6 +833,10 @@ const App = {
           requestsPerMinute = this.sharedConfig.requests;
       }
 
+      // Calculate Context Window usage
+      const contextUsage = model.context_window ? (totalTokens / model.context_window * 100) : 0;
+      const contextUsageStr = `${contextUsage.toFixed(1)}%`;
+
       // Calculate RPM usage
       const rpmUsage = model.rpm_limit ? (requestsPerMinute / model.rpm_limit * 100) : 0;
       const rpmUsageStr = model.rpm_limit ? `${rpmUsage.toFixed(1)}%` : 'N/A';
@@ -861,8 +869,13 @@ const App = {
       }
 
       // Create progress bar for usage
+      const contextBarWidth = Math.min(contextUsage, 100);
       const rpmBarWidth = Math.min(rpmUsage, 100);
       const tpmBarWidth = Math.min(tpmUsage, 100);
+
+      let contextBarColor = 'bg-green-500';
+      if (contextUsage > 100) contextBarColor = 'bg-red-500';
+      else if (contextUsage > 80) contextBarColor = 'bg-yellow-500';
 
       let rpmBarColor = 'bg-green-500';
       if (rpmUsage > 100) rpmBarColor = 'bg-red-500';
@@ -877,8 +890,17 @@ const App = {
           <th class="px-6 py-4 font-medium whitespace-nowrap" scope="row">
             <span class="model-tooltip" data-provider="${model.provider}">${model.model}</span>
           </th>
+          <td class="px-6 py-4">${Utils.formatNumber(model.context_window)}</td>
           <td class="px-6 py-4">${model.rpm_limit ? Utils.formatNumber(model.rpm_limit) : 'N/A'}</td>
           <td class="px-6 py-4">${model.tpm_limit ? Utils.formatNumber(model.tpm_limit) : 'N/A'}</td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-2">
+              <div class="flex-1 h-2 bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
+                <div class="${contextBarColor} h-full transition-all duration-300" style="width: ${contextBarWidth}%"></div>
+              </div>
+              <span class="text-xs w-12 text-right">${contextUsageStr}</span>
+            </div>
+          </td>
           <td class="px-6 py-4">
             <div class="flex items-center gap-2">
               <div class="flex-1 h-2 bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
@@ -922,7 +944,7 @@ const App = {
     if (tbody) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="6" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
+          <td colspan="8" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
             Select models to see throughput analysis
           </td>
         </tr>
@@ -948,7 +970,7 @@ const App = {
     if (tbody) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="6" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
+          <td colspan="5" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
             Select models to see results
           </td>
         </tr>
