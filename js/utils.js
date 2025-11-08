@@ -110,6 +110,20 @@ const Utils = {
   },
 
   /**
+   * Format large numbers with K suffix for thousands
+   * @param {number} num - Number to format
+   * @returns {string} Formatted number (e.g., 450000 -> "450K", 1500 -> "1.5K")
+   */
+  formatCompactNumber(num) {
+    if (num >= 1000) {
+      const thousands = num / 1000;
+      // Remove decimal if it's .0
+      return thousands % 1 === 0 ? `${thousands}K` : `${thousands.toFixed(1)}K`;
+    }
+    return num.toString();
+  },
+
+  /**
    * Format currency
    * @param {number} amount - Amount to format
    * @param {number} decimals - Number of decimal places (default: 2)

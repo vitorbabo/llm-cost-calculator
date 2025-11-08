@@ -187,15 +187,6 @@ const App = {
    * Setup event listeners
    */
   setupEventListeners() {
-    // Tab switching
-    document.getElementById('tab-cost')?.addEventListener('click', () => {
-      this.switchTab('cost');
-    });
-
-    document.getElementById('tab-throughput')?.addEventListener('click', () => {
-      this.switchTab('throughput');
-    });
-
     // Reset button
     document.getElementById('reset-btn')?.addEventListener('click', () => {
       this.reset();
@@ -427,32 +418,6 @@ const App = {
   },
 
   /**
-   * Switch between tabs
-   */
-  switchTab(tabName) {
-    // Update tab buttons
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.classList.remove('active', 'border-primary');
-      btn.classList.add('border-transparent', 'text-text-light/60', 'dark:text-text-dark/60');
-    });
-
-    // Update tab content
-    document.querySelectorAll('.tab-content').forEach(content => {
-      content.classList.add('hidden');
-    });
-
-    if (tabName === 'cost') {
-      document.getElementById('tab-cost')?.classList.add('active', 'border-primary');
-      document.getElementById('tab-cost')?.classList.remove('border-transparent', 'text-text-light/60', 'dark:text-text-dark/60');
-      document.getElementById('cost-view')?.classList.remove('hidden');
-    } else if (tabName === 'throughput') {
-      document.getElementById('tab-throughput')?.classList.add('active', 'border-primary');
-      document.getElementById('tab-throughput')?.classList.remove('border-transparent', 'text-text-light/60', 'dark:text-text-dark/60');
-      document.getElementById('throughput-view')?.classList.remove('hidden');
-    }
-  },
-
-  /**
    * Calculate and display results
    */
   calculate() {
@@ -478,9 +443,8 @@ const App = {
     // Calculate comparisons
     const results = Calculator.compareModels(comparisons);
 
-    // Update both views
+    // Update unified view
     this.updateCostView(results);
-    this.updateThroughputView(results);
   },
 
   /**
@@ -495,6 +459,8 @@ const App = {
 
     // Update summary cards
     this.updateCostSummaryCards(cheapest);
+    this.updateMaxThroughputCard(results);
+    this.updateAvgUtilizationCard(results);
 
     // Update chart (bar for multiple, pie for single)
     if (enabledResults.length === 1) {
@@ -513,7 +479,6 @@ const App = {
   updateCostSummaryCards(cheapest) {
     const totalCostEl = document.getElementById('total-cost');
     const costPer1kEl = document.getElementById('cost-per-1k');
-    const monthlyCostEl = document.getElementById('monthly-cost');
     const timeframeLabelEls = document.querySelectorAll('.timeframe-label');
 
     if (totalCostEl) {
@@ -526,36 +491,6 @@ const App = {
       costPer1kEl.textContent = Utils.formatCurrency(costPer1k);
     }
 
-    // Calculate projected monthly cost
-    if (monthlyCostEl) {
-      let monthlyCost;
-      const currentCost = cheapest.totalCost.totalCost;
-
-      switch (this.currentTimeframe) {
-        case 'minute':
-          monthlyCost = currentCost * 60 * 24 * 30; // min to month
-          break;
-        case 'hour':
-          monthlyCost = currentCost * 24 * 30; // hour to month
-          break;
-        case 'day':
-          monthlyCost = currentCost * 30; // day to month
-          break;
-        case 'month':
-          monthlyCost = currentCost; // already monthly
-          break;
-        case 'total':
-          // For total requests, show monthly based on reasonable assumption
-          // Assume the total requests happen over a month
-          monthlyCost = currentCost;
-          break;
-        default:
-          monthlyCost = 0;
-      }
-
-      monthlyCostEl.textContent = Utils.formatCurrency(monthlyCost);
-    }
-
     timeframeLabelEls.forEach(el => {
       if (cheapest.totalCost.period === 'total') {
         el.textContent = '(total)';
@@ -563,6 +498,143 @@ const App = {
         el.textContent = `/ ${cheapest.totalCost.period}`;
       }
     });
+  },
+
+  /**
+   * Update max throughput card
+   */
+  updateMaxThroughputCard(results) {
+    const maxThroughputEl = document.getElementById('max-throughput');
+    const maxThroughputDetailEl = document.getElementById('max-throughput-detail');
+
+    if (!maxThroughputEl || !maxThroughputDetailEl) return;
+
+    const enabledResults = results.filter(r => r.enabled);
+    if (enabledResults.length === 0) {
+      maxThroughputEl.textContent = '-';
+      maxThroughputDetailEl.textContent = 'No models selected';
+      return;
+    }
+
+    // Find model with highest throughput (prioritize TPM over RPM)
+    let maxThroughputModel = null;
+    let maxTpm = 0;
+    let maxRpm = 0;
+
+    enabledResults.forEach(result => {
+      const model = result.model;
+      if (model.tpm_limit && model.tpm_limit > maxTpm) {
+        maxTpm = model.tpm_limit;
+        maxThroughputModel = model;
+      } else if (!model.tpm_limit && model.rpm_limit && model.rpm_limit > maxRpm) {
+        maxRpm = model.rpm_limit;
+        if (!maxThroughputModel || !maxThroughputModel.tpm_limit) {
+          maxThroughputModel = model;
+        }
+      }
+    });
+
+    if (maxThroughputModel) {
+      if (maxTpm > 0) {
+        maxThroughputEl.textContent = Utils.formatCompactNumber(maxTpm) + ' TPM';
+        maxThroughputDetailEl.textContent = maxThroughputModel.model;
+      } else if (maxRpm > 0) {
+        maxThroughputEl.textContent = Utils.formatCompactNumber(maxRpm) + ' RPM';
+        maxThroughputDetailEl.textContent = maxThroughputModel.model;
+      } else {
+        maxThroughputEl.textContent = 'N/A';
+        maxThroughputDetailEl.textContent = 'No limits available';
+      }
+    } else {
+      maxThroughputEl.textContent = 'N/A';
+      maxThroughputDetailEl.textContent = 'No limits available';
+    }
+  },
+
+  /**
+   * Update average utilization card
+   */
+  updateAvgUtilizationCard(results) {
+    const avgUtilizationEl = document.getElementById('avg-utilization');
+    const avgUtilizationDetailEl = document.getElementById('avg-utilization-detail');
+
+    if (!avgUtilizationEl || !avgUtilizationDetailEl) return;
+
+    const enabledResults = results.filter(r => r.enabled);
+    if (enabledResults.length === 0) {
+      avgUtilizationEl.textContent = '-';
+      avgUtilizationDetailEl.textContent = 'No models selected';
+      return;
+    }
+
+    // Convert requests to per-minute based on timeframe
+    let requestsPerMinute = this.sharedConfig.requests;
+    switch (this.currentTimeframe) {
+      case 'hour': requestsPerMinute = this.sharedConfig.requests / 60; break;
+      case 'day': requestsPerMinute = this.sharedConfig.requests / (60 * 24); break;
+      case 'month': requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30); break;
+      case 'total': requestsPerMinute = this.sharedConfig.requests / 60; break;
+    }
+
+    // Calculate average utilization across all models
+    let totalUtilization = 0;
+    let modelsWithLimits = 0;
+    let okCount = 0;
+    let warningCount = 0;
+    let errorCount = 0;
+
+    enabledResults.forEach(result => {
+      const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
+      const tokensPerMinute = totalTokens * requestsPerMinute;
+
+      const contextUsage = result.model.context_window ? (totalTokens / result.model.context_window * 100) : 0;
+      const rpmUsage = result.model.rpm_limit ? (requestsPerMinute / result.model.rpm_limit * 100) : 0;
+      const tpmUsage = result.model.tpm_limit ? (tokensPerMinute / result.model.tpm_limit * 100) : 0;
+
+      const maxUsage = Math.max(contextUsage, rpmUsage, tpmUsage);
+
+      if (maxUsage > 0) {
+        totalUtilization += maxUsage;
+        modelsWithLimits++;
+
+        if (maxUsage > 100) {
+          errorCount++;
+        } else if (maxUsage > 80) {
+          warningCount++;
+        } else {
+          okCount++;
+        }
+      }
+    });
+
+    const avgUtilization = modelsWithLimits > 0 ? totalUtilization / modelsWithLimits : 0;
+
+    // Determine color based on average utilization
+    let utilizationColor = '';
+    if (avgUtilization > 100) {
+      utilizationColor = 'text-red-600 dark:text-red-400';
+    } else if (avgUtilization > 80) {
+      utilizationColor = 'text-yellow-600 dark:text-yellow-400';
+    } else {
+      utilizationColor = 'text-green-600 dark:text-green-400';
+    }
+
+    avgUtilizationEl.textContent = avgUtilization > 0 ? `${avgUtilization.toFixed(1)}%` : 'N/A';
+    avgUtilizationEl.className = `text-2xl font-bold ${utilizationColor}`;
+
+    // Create detail text
+    let detailText = '';
+    if (errorCount > 0) {
+      detailText = `${errorCount} model${errorCount > 1 ? 's' : ''} over limit`;
+    } else if (warningCount > 0) {
+      detailText = `${warningCount} model${warningCount > 1 ? 's' : ''} near limit`;
+    } else if (okCount > 0) {
+      detailText = `${okCount} model${okCount > 1 ? 's' : ''} within limits`;
+    } else {
+      detailText = 'No quota data available';
+    }
+
+    avgUtilizationDetailEl.textContent = detailText;
   },
 
   /**
@@ -586,14 +658,59 @@ const App = {
       const heightPercent = maxCost > 0 ? (result.totalCost.totalCost / maxCost * 100) : 0;
       const isFirst = result === enabledResults[0];
 
+      // Determine quota status
+      const hasErrors = result.validation.warnings.some(w => w.severity === 'error');
+      const hasWarnings = result.validation.warnings.some(w => w.severity === 'warning');
+
+      let quotaIcon = '';
+      let quotaColor = '';
+
+      if (hasErrors) {
+        quotaIcon = 'error';
+        quotaColor = 'text-red-600 dark:text-red-400';
+      } else if (hasWarnings) {
+        quotaIcon = 'warning';
+        quotaColor = 'text-yellow-600 dark:text-yellow-400';
+      } else {
+        quotaIcon = 'check_circle';
+        quotaColor = 'text-green-600 dark:text-green-400';
+      }
+
+      // Calculate overall quota usage for badge
+      const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
+      let requestsPerMinute = this.sharedConfig.requests;
+      switch (this.currentTimeframe) {
+        case 'hour': requestsPerMinute = this.sharedConfig.requests / 60; break;
+        case 'day': requestsPerMinute = this.sharedConfig.requests / (60 * 24); break;
+        case 'month': requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30); break;
+        case 'total': requestsPerMinute = this.sharedConfig.requests / 60; break;
+      }
+      const tokensPerMinute = totalTokens * requestsPerMinute;
+
+      const contextUsage = result.model.context_window ? (totalTokens / result.model.context_window * 100) : 0;
+      const rpmUsage = result.model.rpm_limit ? (requestsPerMinute / result.model.rpm_limit * 100) : 0;
+      const tpmUsage = result.model.tpm_limit ? (tokensPerMinute / result.model.tpm_limit * 100) : 0;
+      const maxUsage = Math.max(contextUsage, rpmUsage, tpmUsage);
+
       return `
-        <div class="flex flex-col items-center gap-2 flex-1 h-full justify-end">
-          <div class="w-full ${isFirst ? 'bg-primary' : 'bg-primary/30'} rounded-t-md transition-all duration-300"
-               style="height: ${heightPercent}%"
-               title="${result.model.model}: ${Utils.formatCurrency(result.totalCost.totalCost)}">
+        <div class="flex flex-col items-center flex-1 h-full" style="min-width: 60px;">
+          <div class="flex flex-col items-center gap-1 mb-2">
+            <span class="material-symbols-outlined text-base ${quotaColor}" title="Quota status">${quotaIcon}</span>
+            <p class="text-xs ${quotaColor} h-4">${maxUsage > 0 ? `${maxUsage.toFixed(0)}%` : ''}</p>
           </div>
-          <p class="text-xs text-text-light/70 dark:text-text-dark/70 text-center">${result.model.model}</p>
-          <p class="text-xs font-medium">${Utils.formatCurrency(result.totalCost.totalCost)}</p>
+          <div class="flex-1 w-full flex flex-col justify-end">
+            <div class="w-full ${isFirst ? 'bg-primary' : 'bg-primary/30'} rounded-t-md transition-all duration-300 relative"
+                 style="height: ${heightPercent}%"
+                 title="${result.model.model}: ${Utils.formatCurrency(result.totalCost.totalCost)} | Quota: ${maxUsage.toFixed(0)}%">
+              ${maxUsage > 0 ? `
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-t from-${hasErrors ? 'red' : hasWarnings ? 'yellow' : 'green'}-500/50 to-transparent"></div>
+              ` : ''}
+            </div>
+          </div>
+          <div class="flex flex-col items-center gap-0.5 mt-2">
+            <p class="text-xs text-text-light/70 dark:text-text-dark/70 text-center truncate w-full px-1">${result.model.model}</p>
+            <p class="text-xs font-medium">${Utils.formatCurrency(result.totalCost.totalCost)}</p>
+          </div>
         </div>
       `;
     }).join('');
@@ -607,49 +724,138 @@ const App = {
     document.getElementById('single-model-chart')?.classList.remove('hidden');
 
     const pieContainer = document.getElementById('chart-pie');
-    if (!pieContainer) return;
+    const gaugesContainer = document.getElementById('quota-gauges');
 
-    const inputCost = result.totalCost.totalInputCost;
-    const outputCost = result.totalCost.totalOutputCost;
-    const total = inputCost + outputCost;
+    // Render cost pie chart
+    if (pieContainer) {
+      const inputCost = result.totalCost.totalInputCost;
+      const outputCost = result.totalCost.totalOutputCost;
+      const total = inputCost + outputCost;
 
-    if (total === 0) {
-      pieContainer.innerHTML = '<p class="text-text-light/60 dark:text-text-dark/60 text-sm">No cost data</p>';
-      return;
+      if (total === 0) {
+        pieContainer.innerHTML = '<p class="text-text-light/60 dark:text-text-dark/60 text-sm">No cost data</p>';
+      } else {
+        const inputPercent = (inputCost / total * 100).toFixed(1);
+        const outputPercent = (outputCost / total * 100).toFixed(1);
+
+        // Simple CSS-based pie chart using conic gradient
+        pieContainer.innerHTML = `
+          <div class="flex items-center justify-center gap-4">
+            <div class="relative w-24 h-24 flex-shrink-0">
+              <div class="w-full h-full rounded-full" style="background: conic-gradient(
+                #ffa500 0% ${inputPercent}%,
+                #ffa50050 ${inputPercent}% 100%
+              )"></div>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <div class="w-16 h-16 rounded-full bg-surface-light dark:bg-surface-dark"></div>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-sm bg-primary flex-shrink-0"></div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs font-medium">Input</p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatCurrency(inputCost)} (${inputPercent}%)</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-sm bg-primary/30 flex-shrink-0"></div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs font-medium">Output</p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatCurrency(outputCost)} (${outputPercent}%)</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
     }
 
-    const inputPercent = (inputCost / total * 100).toFixed(1);
-    const outputPercent = (outputCost / total * 100).toFixed(1);
+    // Render quota gauges
+    if (gaugesContainer) {
+      this.renderQuotaGauges(gaugesContainer, result);
+    }
+  },
 
-    // Simple CSS-based pie chart using conic gradient
-    pieContainer.innerHTML = `
-      <div class="flex items-center gap-8">
-        <div class="relative w-48 h-48">
-          <div class="w-full h-full rounded-full" style="background: conic-gradient(
-            #ffa500 0% ${inputPercent}%,
-            #ffa50050 ${inputPercent}% 100%
-          )"></div>
-          <div class="absolute inset-0 flex items-center justify-center">
-            <div class="w-32 h-32 rounded-full bg-surface-light dark:bg-surface-dark"></div>
+  /**
+   * Render radial gauge charts for quota usage
+   */
+  renderQuotaGauges(container, result) {
+    const model = result.model;
+    const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
+
+    // Convert requests to per-minute based on timeframe
+    let requestsPerMinute = this.sharedConfig.requests;
+    switch (this.currentTimeframe) {
+      case 'hour': requestsPerMinute = this.sharedConfig.requests / 60; break;
+      case 'day': requestsPerMinute = this.sharedConfig.requests / (60 * 24); break;
+      case 'month': requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30); break;
+      case 'total': requestsPerMinute = this.sharedConfig.requests / 60; break;
+    }
+
+    const tokensPerMinute = totalTokens * requestsPerMinute;
+
+    // Calculate usage percentages
+    const contextUsage = model.context_window ? Math.min((totalTokens / model.context_window * 100), 150) : 0;
+    const rpmUsage = model.rpm_limit ? Math.min((requestsPerMinute / model.rpm_limit * 100), 150) : null;
+    const tpmUsage = model.tpm_limit ? Math.min((tokensPerMinute / model.tpm_limit * 100), 150) : null;
+
+    const gauges = [
+      { label: 'Context', value: contextUsage, max: model.context_window, current: totalTokens },
+      { label: 'RPM', value: rpmUsage, max: model.rpm_limit, current: Math.round(requestsPerMinute) },
+      { label: 'TPM', value: tpmUsage, max: model.tpm_limit, current: Math.round(tokensPerMinute) }
+    ];
+
+    container.innerHTML = gauges.map(gauge => {
+      if (gauge.value === null) {
+        return `
+          <div class="flex flex-col items-center justify-start gap-1.5" style="width: 80px;">
+            <div class="radial-gauge opacity-30">
+              ${this.createRadialGaugeSVG(0, '#9ca3af')}
+            </div>
+            <p class="text-xs font-medium text-text-light/70 dark:text-text-dark/70 text-center">${gauge.label}</p>
+            <p class="text-xs text-text-light/60 dark:text-text-dark/60 text-center">N/A</p>
           </div>
-        </div>
-        <div class="flex flex-col gap-4">
-          <div class="flex items-center gap-3">
-            <div class="w-4 h-4 rounded-sm bg-primary"></div>
-            <div>
-              <p class="text-sm font-medium">Input Tokens</p>
-              <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatCurrency(inputCost)} (${inputPercent}%)</p>
+        `;
+      }
+
+      const percentage = gauge.value;
+      let color = '#10b981'; // green
+      if (percentage > 100) color = '#ef4444'; // red
+      else if (percentage > 80) color = '#f59e0b'; // yellow
+
+      return `
+        <div class="flex flex-col items-center justify-start gap-1.5" style="width: 80px;">
+          <div class="radial-gauge">
+            ${this.createRadialGaugeSVG(percentage, color)}
+            <div class="radial-gauge-text">
+              <p class="text-sm font-bold" style="color: ${color}">${percentage.toFixed(0)}%</p>
             </div>
           </div>
-          <div class="flex items-center gap-3">
-            <div class="w-4 h-4 rounded-sm bg-primary/30"></div>
-            <div>
-              <p class="text-sm font-medium">Output Tokens</p>
-              <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatCurrency(outputCost)} (${outputPercent}%)</p>
-            </div>
-          </div>
+          <p class="text-xs font-medium text-text-light/70 dark:text-text-dark/70 text-center">${gauge.label}</p>
+          <p class="text-xs text-text-light/60 dark:text-text-dark/60 text-center break-words">${Utils.formatNumber(gauge.current)} / ${Utils.formatNumber(gauge.max)}</p>
         </div>
-      </div>
+      `;
+    }).join('');
+  },
+
+  /**
+   * Create SVG for radial gauge
+   */
+  createRadialGaugeSVG(percentage, color) {
+    const radius = 32;
+    const circumference = 2 * Math.PI * radius;
+    const offset = circumference - (Math.min(percentage, 100) / 100) * circumference;
+
+    return `
+      <svg width="80" height="80" class="radial-gauge-circle">
+        <circle cx="40" cy="40" r="${radius}" stroke-width="6" class="radial-gauge-bg"></circle>
+        <circle cx="40" cy="40" r="${radius}" stroke-width="6"
+                class="radial-gauge-progress"
+                stroke="${color}"
+                stroke-dasharray="${circumference}"
+                stroke-dashoffset="${offset}"></circle>
+      </svg>
     `;
   },
 
@@ -660,7 +866,7 @@ const App = {
     const tbody = document.getElementById('comparison-table-body');
     if (!tbody) return;
 
-    tbody.innerHTML = results.map((result) => {
+    tbody.innerHTML = results.map((result, index) => {
       const isEnabled = result.enabled;
       const opacity = isEnabled ? '' : 'text-text-light/50 dark:text-text-dark/50';
       const hasErrors = result.validation.warnings.some(w => w.severity === 'error');
@@ -691,10 +897,38 @@ const App = {
       const statusIconHtml = (hasErrors || hasWarnings) ?
         `<span class="material-symbols-outlined text-base ${statusColor} warning-tooltip" data-warning="${warningText}">${statusIcon}</span>` : '';
 
+      // Calculate quota usage
+      const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
+      let requestsPerMinute = this.sharedConfig.requests;
+      switch (this.currentTimeframe) {
+        case 'hour': requestsPerMinute = this.sharedConfig.requests / 60; break;
+        case 'day': requestsPerMinute = this.sharedConfig.requests / (60 * 24); break;
+        case 'month': requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30); break;
+        case 'total': requestsPerMinute = this.sharedConfig.requests / 60; break;
+      }
+      const tokensPerMinute = totalTokens * requestsPerMinute;
+
+      const contextUsage = result.model.context_window ? (totalTokens / result.model.context_window * 100) : 0;
+      const rpmUsage = result.model.rpm_limit ? (requestsPerMinute / result.model.rpm_limit * 100) : 0;
+      const tpmUsage = result.model.tpm_limit ? (tokensPerMinute / result.model.tpm_limit * 100) : 0;
+
+      // Create expanded content
+      const expandedContent = this.createExpandedRowContent(result, {
+        contextUsage,
+        rpmUsage,
+        tpmUsage,
+        requestsPerMinute,
+        tokensPerMinute,
+        totalTokens
+      });
+
+      const rowId = `row-${index}`;
+
       return `
-        <tr class="border-b border-border-light dark:border-border-dark">
+        <tr class="border-b border-border-light dark:border-border-dark expandable-row" data-row-id="${rowId}">
           <th class="px-6 py-4 font-medium whitespace-nowrap ${opacity}" scope="row">
             <div class="model-name-wrapper">
+              <span class="material-symbols-outlined text-base expand-icon cursor-pointer" data-row-id="${rowId}">expand_more</span>
               ${statusIconHtml}
               <span class="model-tooltip" data-provider="${result.model.provider}">${result.model.model}</span>
             </div>
@@ -710,240 +944,160 @@ const App = {
             ${isEnabled ? Utils.formatCurrency(result.totalCost.totalCost) : '-'}
           </td>
         </tr>
+        <tr id="${rowId}-expanded" class="border-b border-border-light dark:border-border-dark">
+          <td colspan="5" class="p-0">
+            <div class="expanded-content" id="${rowId}-content">
+              ${expandedContent}
+            </div>
+          </td>
+        </tr>
       `;
     }).join('');
+
+    // Add click event listeners for expandable rows
+    this.setupExpandableRows();
   },
 
   /**
-   * Update throughput view with all throughput-related information
+   * Create expanded row content with detailed quota breakdown
    */
-  updateThroughputView(results) {
-    const enabledResults = results.filter(r => r.enabled);
-    if (enabledResults.length === 0) {
-      this.clearThroughputView();
-      return;
-    }
+  createExpandedRowContent(result, usage) {
+    const { contextUsage, rpmUsage, tpmUsage, requestsPerMinute, tokensPerMinute, totalTokens } = usage;
 
-    // Update summary cards
-    this.updateThroughputSummaryCards(enabledResults);
+    const getUsageColor = (percentage) => {
+      if (percentage > 100) return 'text-red-600 dark:text-red-400';
+      if (percentage > 80) return 'text-yellow-600 dark:text-yellow-400';
+      return 'text-green-600 dark:text-green-400';
+    };
 
-    // Update throughput table
-    this.updateThroughputTable(results);
-  },
+    const getProgressBarColor = (percentage) => {
+      if (percentage > 100) return 'bg-red-500';
+      if (percentage > 80) return 'bg-yellow-500';
+      return 'bg-green-500';
+    };
 
-  /**
-   * Update throughput summary cards
-   */
-  updateThroughputSummaryCards(enabledResults) {
-    const maxRpmEl = document.getElementById('max-rpm');
-    const maxTpmEl = document.getElementById('max-tpm');
-    const currentUtilEl = document.getElementById('current-util');
+    // Calculate cost per 1K requests for this model
+    const costPer1k = (result.totalCost.totalCost / this.sharedConfig.requests) * 1000;
 
-    // Convert requests to per-minute based on timeframe
-    let requestsPerMinute = this.sharedConfig.requests;
-
+    // Calculate monthly projection
+    let monthlyCost = 0;
     switch (this.currentTimeframe) {
-      case 'hour':
-        requestsPerMinute = this.sharedConfig.requests / 60;
-        break;
-      case 'day':
-        requestsPerMinute = this.sharedConfig.requests / (60 * 24);
-        break;
-      case 'month':
-        requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30);
-        break;
-      case 'total':
-        // For total requests, assume they happen over a reasonable period (e.g., 1 hour)
-        requestsPerMinute = this.sharedConfig.requests / 60;
-        break;
-      case 'minute':
-      default:
-        requestsPerMinute = this.sharedConfig.requests;
+      case 'minute': monthlyCost = result.totalCost.totalCost * 60 * 24 * 30; break;
+      case 'hour': monthlyCost = result.totalCost.totalCost * 24 * 30; break;
+      case 'day': monthlyCost = result.totalCost.totalCost * 30; break;
+      case 'month': monthlyCost = result.totalCost.totalCost; break;
+      case 'total': monthlyCost = result.totalCost.totalCost; break;
     }
 
-    // Find max RPM and TPM across all models
-    let maxRpm = 0;
-    let maxTpm = 0;
-    let totalUtilization = 0;
+    return `
+      <div class="p-6 bg-background-light/50 dark:bg-background-dark/50">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Cost Details -->
+          <div>
+            <h4 class="font-semibold text-sm mb-3 text-primary">Cost Details</h4>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span class="text-text-light/70 dark:text-text-dark/70">Input Cost:</span>
+                <span class="font-medium">${result.totalCost.totalInputTokens.toLocaleString()} tokens × ${Utils.formatCurrency(result.model.input_price_per_1m)}/1M = ${Utils.formatCurrency(result.totalCost.totalInputCost)}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-text-light/70 dark:text-text-dark/70">Output Cost:</span>
+                <span class="font-medium">${result.totalCost.totalOutputTokens.toLocaleString()} tokens × ${Utils.formatCurrency(result.model.output_price_per_1m)}/1M = ${Utils.formatCurrency(result.totalCost.totalOutputCost)}</span>
+              </div>
+              <div class="flex justify-between pt-2 border-t border-border-light dark:border-border-dark">
+                <span class="text-text-light/70 dark:text-text-dark/70">Cost per 1K Requests:</span>
+                <span class="font-medium">${Utils.formatCurrency(costPer1k)}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-text-light/70 dark:text-text-dark/70">Monthly Projection:</span>
+                <span class="font-medium">${Utils.formatCurrency(monthlyCost)}</span>
+              </div>
+            </div>
+          </div>
 
-    enabledResults.forEach(result => {
-      const model = result.model;
-      if (model.rpm_limit && model.rpm_limit > maxRpm) {
-        maxRpm = model.rpm_limit;
-      }
-      if (model.tpm_limit && model.tpm_limit > maxTpm) {
-        maxTpm = model.tpm_limit;
-      }
+          <!-- Quota Usage -->
+          <div>
+            <h4 class="font-semibold text-sm mb-3 text-primary">Quota Usage</h4>
+            <div class="space-y-3">
+              <!-- Context Usage -->
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-text-light/70 dark:text-text-dark/70">Context Window</span>
+                  <span class="${getUsageColor(contextUsage)} font-medium">${contextUsage.toFixed(1)}%</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="flex-1 h-2 bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
+                    <div class="${getProgressBarColor(contextUsage)} h-full transition-all duration-300" style="width: ${Math.min(contextUsage, 100)}%"></div>
+                  </div>
+                </div>
+                <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-1">${Utils.formatNumber(totalTokens)} / ${Utils.formatNumber(result.model.context_window)}</p>
+              </div>
 
-      // Calculate utilization for this model
-      const rpmUtil = model.rpm_limit ? (requestsPerMinute / model.rpm_limit * 100) : 0;
-      const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
-      const tokensPerMinute = totalTokens * requestsPerMinute;
-      const tpmUtil = model.tpm_limit ? (tokensPerMinute / model.tpm_limit * 100) : 0;
-      const modelUtil = Math.max(rpmUtil, tpmUtil);
-      totalUtilization += modelUtil;
+              <!-- RPM Usage -->
+              ${result.model.rpm_limit ? `
+                <div>
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="text-text-light/70 dark:text-text-dark/70">Requests Per Minute</span>
+                    <span class="${getUsageColor(rpmUsage)} font-medium">${rpmUsage.toFixed(1)}%</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <div class="flex-1 h-2 bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
+                      <div class="${getProgressBarColor(rpmUsage)} h-full transition-all duration-300" style="width: ${Math.min(rpmUsage, 100)}%"></div>
+                    </div>
+                  </div>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-1">${Utils.formatNumber(requestsPerMinute)} / ${Utils.formatNumber(result.model.rpm_limit)}</p>
+                </div>
+              ` : ''}
+
+              <!-- TPM Usage -->
+              ${result.model.tpm_limit ? `
+                <div>
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="text-text-light/70 dark:text-text-dark/70">Tokens Per Minute</span>
+                    <span class="${getUsageColor(tpmUsage)} font-medium">${tpmUsage.toFixed(1)}%</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <div class="flex-1 h-2 bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
+                      <div class="${getProgressBarColor(tpmUsage)} h-full transition-all duration-300" style="width: ${Math.min(tpmUsage, 100)}%"></div>
+                    </div>
+                  </div>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-1">${Utils.formatNumber(tokensPerMinute)} / ${Utils.formatNumber(result.model.tpm_limit)}</p>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /**
+   * Setup event listeners for expandable table rows
+   */
+  setupExpandableRows() {
+    document.querySelectorAll('.expandable-row, .expand-icon').forEach(element => {
+      element.addEventListener('click', (e) => {
+        const rowId = element.dataset.rowId || e.target.dataset.rowId;
+        if (!rowId) return;
+
+        const content = document.getElementById(`${rowId}-content`);
+        const icon = document.querySelector(`.expand-icon[data-row-id="${rowId}"]`);
+
+        if (content && icon) {
+          const isOpen = content.classList.contains('open');
+
+          if (isOpen) {
+            content.classList.remove('open');
+            icon.classList.remove('rotated');
+            icon.textContent = 'expand_more';
+          } else {
+            content.classList.add('open');
+            icon.classList.add('rotated');
+            icon.textContent = 'expand_less';
+          }
+        }
+      });
     });
-
-    const avgUtilization = enabledResults.length > 0 ? totalUtilization / enabledResults.length : 0;
-
-    if (maxRpmEl) {
-      maxRpmEl.textContent = maxRpm > 0 ? Utils.formatNumber(maxRpm) : 'N/A';
-    }
-
-    if (maxTpmEl) {
-      maxTpmEl.textContent = maxTpm > 0 ? Utils.formatNumber(maxTpm) : 'N/A';
-    }
-
-    if (currentUtilEl) {
-      currentUtilEl.textContent = avgUtilization > 0 ? `${avgUtilization.toFixed(1)}%` : 'N/A';
-    }
-  },
-
-  /**
-   * Update throughput comparison table
-   */
-  updateThroughputTable(results) {
-    const tbody = document.getElementById('throughput-table-body');
-    if (!tbody) return;
-
-    tbody.innerHTML = results.map(result => {
-      const model = result.model;
-      const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
-
-      // Convert requests to per-minute based on timeframe
-      let requestsPerMinute = this.sharedConfig.requests;
-
-      switch (this.currentTimeframe) {
-        case 'hour':
-          requestsPerMinute = this.sharedConfig.requests / 60;
-          break;
-        case 'day':
-          requestsPerMinute = this.sharedConfig.requests / (60 * 24);
-          break;
-        case 'month':
-          requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30);
-          break;
-        case 'total':
-          // For total requests, we can't determine per-minute rate
-          // Assume they happen over a reasonable period (e.g., 1 hour)
-          requestsPerMinute = this.sharedConfig.requests / 60;
-          break;
-        case 'minute':
-        default:
-          requestsPerMinute = this.sharedConfig.requests;
-      }
-
-      // Calculate Context Window usage
-      const contextUsage = model.context_window ? (totalTokens / model.context_window * 100) : 0;
-      const contextUsageStr = `${contextUsage.toFixed(1)}%`;
-
-      // Calculate RPM usage
-      const rpmUsage = model.rpm_limit ? (requestsPerMinute / model.rpm_limit * 100) : 0;
-      const rpmUsageStr = model.rpm_limit ? `${rpmUsage.toFixed(1)}%` : 'N/A';
-
-      // Calculate TPM usage
-      const tokensPerMinute = totalTokens * requestsPerMinute;
-      const tpmUsage = model.tpm_limit ? (tokensPerMinute / model.tpm_limit * 100) : 0;
-      const tpmUsageStr = model.tpm_limit ? `${tpmUsage.toFixed(1)}%` : 'N/A';
-
-      // Determine status
-      const hasErrors = result.validation.warnings.some(w => w.severity === 'error');
-      const hasWarnings = result.validation.warnings.some(w => w.severity === 'warning');
-
-      let statusIcon = '';
-      let statusText = '';
-      let statusColor = '';
-
-      if (hasErrors) {
-        statusIcon = 'error';
-        statusText = 'Exceeded';
-        statusColor = 'text-red-600 dark:text-red-400';
-      } else if (hasWarnings) {
-        statusIcon = 'warning';
-        statusText = 'Warning';
-        statusColor = 'text-yellow-600 dark:text-yellow-400';
-      } else {
-        statusIcon = 'check_circle';
-        statusText = 'OK';
-        statusColor = 'text-green-600 dark:text-green-400';
-      }
-
-      // Create progress bar for usage
-      const contextBarWidth = Math.min(contextUsage, 100);
-      const rpmBarWidth = Math.min(rpmUsage, 100);
-      const tpmBarWidth = Math.min(tpmUsage, 100);
-
-      let contextBarColor = 'bg-green-500';
-      if (contextUsage > 100) contextBarColor = 'bg-red-500';
-      else if (contextUsage > 80) contextBarColor = 'bg-yellow-500';
-
-      let rpmBarColor = 'bg-green-500';
-      if (rpmUsage > 100) rpmBarColor = 'bg-red-500';
-      else if (rpmUsage > 80) rpmBarColor = 'bg-yellow-500';
-
-      let tpmBarColor = 'bg-green-500';
-      if (tpmUsage > 100) tpmBarColor = 'bg-red-500';
-      else if (tpmUsage > 80) tpmBarColor = 'bg-yellow-500';
-
-      return `
-        <tr class="border-b border-border-light dark:border-border-dark">
-          <th class="px-6 py-4 font-medium whitespace-nowrap" scope="row">
-            <span class="model-tooltip" data-provider="${model.provider}">${model.model}</span>
-          </th>
-          <td class="px-6 py-4">${Utils.formatNumber(model.context_window)}</td>
-          <td class="px-6 py-4">${model.rpm_limit ? Utils.formatNumber(model.rpm_limit) : 'N/A'}</td>
-          <td class="px-6 py-4">${model.tpm_limit ? Utils.formatNumber(model.tpm_limit) : 'N/A'}</td>
-          <td class="px-6 py-4">
-            <div class="flex items-center gap-2">
-              <div class="flex-1 h-2 bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
-                <div class="${contextBarColor} h-full transition-all duration-300" style="width: ${contextBarWidth}%"></div>
-              </div>
-              <span class="text-xs w-12 text-right">${contextUsageStr}</span>
-            </div>
-          </td>
-          <td class="px-6 py-4">
-            <div class="flex items-center gap-2">
-              <div class="flex-1 h-2 bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
-                <div class="${rpmBarColor} h-full transition-all duration-300" style="width: ${rpmBarWidth}%"></div>
-              </div>
-              <span class="text-xs w-12 text-right">${rpmUsageStr}</span>
-            </div>
-          </td>
-          <td class="px-6 py-4">
-            <div class="flex items-center gap-2">
-              <div class="flex-1 h-2 bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
-                <div class="${tpmBarColor} h-full transition-all duration-300" style="width: ${tpmBarWidth}%"></div>
-              </div>
-              <span class="text-xs w-12 text-right">${tpmUsageStr}</span>
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join('');
-  },
-
-  /**
-   * Clear throughput view
-   */
-  clearThroughputView() {
-    const maxRpmEl = document.getElementById('max-rpm');
-    const maxTpmEl = document.getElementById('max-tpm');
-    const currentUtilEl = document.getElementById('current-util');
-    const tbody = document.getElementById('throughput-table-body');
-
-    if (maxRpmEl) maxRpmEl.textContent = '-';
-    if (maxTpmEl) maxTpmEl.textContent = '-';
-    if (currentUtilEl) currentUtilEl.textContent = '-';
-
-    if (tbody) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="8" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
-            Select models to see throughput analysis
-          </td>
-        </tr>
-      `;
-    }
   },
 
   /**
@@ -953,13 +1107,22 @@ const App = {
     // Clear cost view
     const totalCostEl = document.getElementById('total-cost');
     const costPer1kEl = document.getElementById('cost-per-1k');
-    const monthlyCostEl = document.getElementById('monthly-cost');
+    const maxThroughputEl = document.getElementById('max-throughput');
+    const maxThroughputDetailEl = document.getElementById('max-throughput-detail');
+    const avgUtilizationEl = document.getElementById('avg-utilization');
+    const avgUtilizationDetailEl = document.getElementById('avg-utilization-detail');
     const chartContainer = document.getElementById('chart-bars');
     const tbody = document.getElementById('comparison-table-body');
 
     if (totalCostEl) totalCostEl.textContent = '$0.00';
     if (costPer1kEl) costPer1kEl.textContent = '$0.00';
-    if (monthlyCostEl) monthlyCostEl.textContent = '$0.00';
+    if (maxThroughputEl) maxThroughputEl.textContent = '-';
+    if (maxThroughputDetailEl) maxThroughputDetailEl.textContent = 'No models selected';
+    if (avgUtilizationEl) {
+      avgUtilizationEl.textContent = '-';
+      avgUtilizationEl.className = 'text-2xl font-bold';
+    }
+    if (avgUtilizationDetailEl) avgUtilizationDetailEl.textContent = 'No models selected';
     if (chartContainer) chartContainer.innerHTML = '<p class="text-text-light/60 dark:text-text-dark/60 text-sm">Select models to compare</p>';
     if (tbody) {
       tbody.innerHTML = `
@@ -974,9 +1137,6 @@ const App = {
     // Show multi-model chart container by default
     document.getElementById('multi-model-chart')?.classList.remove('hidden');
     document.getElementById('single-model-chart')?.classList.add('hidden');
-
-    // Clear throughput view
-    this.clearThroughputView();
   },
 
   /**
