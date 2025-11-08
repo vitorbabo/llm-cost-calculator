@@ -12,12 +12,14 @@ const App = {
   sharedConfig: {
     inputTokens: 5000,
     outputTokens: 1500,
-    rpm: 20, // Requests per minute
+    requestsPerDay: 100, // Requests per day (user-facing)
+    rpm: 0.0694, // Calculated from requestsPerDay (100/1440)
     calcMode: 'duration', // 'duration' or 'total'
     duration: 'day', // 'hour', 'day', or 'month'
     totalRequests: 100, // For 'total' mode
     daysPerMonth: 30, // Number of active days per month
-    selectedPreset: 'custom' // Track which preset is selected
+    selectedPreset: 'custom', // Track which preset is selected
+    presetsCollapsed: true // Track if presets are collapsed
   },
   globalInputUnit: 'tokens',
   globalOutputUnit: 'tokens',
@@ -45,6 +47,8 @@ const App = {
       this.updateDynamicLimits(); // Set initial dynamic limits
       this.toggleDaysPerMonthField(); // Initialize days per month field visibility
       this.selectPreset('custom'); // Mark custom as initially selected
+      this.updateRPMDisplay(); // Initialize RPM display
+      this.togglePresetsCollapsed(); // Initialize collapsed state
 
       // Initialize with default model selection
       const gpt4o = this.models.find(m => m.model === 'GPT-5');
@@ -360,11 +364,8 @@ const App = {
     // Add custom models back
     this.models = [...this.models, ...this.customModels];
 
-    // Re-render model selector
+    // Re-render model selector (which will show pills with correct selection state)
     this.renderModelSelector();
-
-    // Update checkboxes
-    this.updateModelSelectorCheckboxes();
   },
 
   /**
@@ -494,59 +495,96 @@ const App = {
       ? providers
       : { [this.selectedProvider]: providers[this.selectedProvider] || [] };
 
+    // Render models as clickable pills grouped by provider
     selector.innerHTML = Object.keys(filteredProviders).sort().map(providerName => {
       const models = filteredProviders[providerName];
       return `
-        <div class="provider-group border-b border-border-light dark:border-border-dark last:border-b-0">
-          <div class="p-2 bg-background-light/50 dark:bg-background-dark/50 text-xs font-medium text-text-light/70 dark:text-text-dark/70">
+        <div class="provider-group mb-4">
+          <div class="mb-2 text-xs font-semibold text-text-light/70 dark:text-text-dark/70 uppercase tracking-wide">
             ${providerName}
           </div>
-          ${models.map(model => {
-            const modelId = `${model.provider}-${model.model}`.replace(/[^a-zA-Z0-9-]/g, '-');
-            const isCustom = model.isCustom === true;
-            const hasTier = model.tier && !isCustom;
-            return `
-              <label class="model-option flex items-center gap-3 p-3 hover:bg-background-light dark:hover:bg-background-dark cursor-pointer transition-colors"
-                     data-model-id="${modelId}">
-                <input type="checkbox"
-                       class="model-checkbox w-4 h-4 text-primary bg-surface-light dark:bg-surface-dark border-border-light dark:border-border-dark rounded focus:ring-primary"
-                       data-provider="${model.provider}"
-                       data-model="${model.model}">
-                <div class="flex-1">
+          <div class="flex flex-wrap gap-2">
+            ${models.map(model => {
+              const isSelected = this.selectedModels.some(m =>
+                m.provider === model.provider && m.model === model.model
+              );
+              const isCustom = model.isCustom === true;
+              const hasTier = model.tier && !isCustom;
+
+              // Base classes for pill
+              const baseClasses = 'model-pill flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all text-xs border';
+              const selectedClasses = isSelected
+                ? 'bg-primary text-white border-primary shadow-md'
+                : 'bg-surface-light dark:bg-surface-dark border-border-light dark:border-border-dark hover:border-primary/50 hover:bg-primary/5';
+
+              return `
+                <div class="model-option ${baseClasses} ${selectedClasses}"
+                     data-provider="${model.provider}"
+                     data-model="${model.model}">
+                  <div class="flex items-center gap-2 flex-1">
+                    <span class="font-medium whitespace-nowrap">${model.model}</span>
+                    ${hasTier ? `<span class="material-symbols-outlined text-xs ${isSelected ? 'text-white' : model.tierColor}" title="${model.tier}">${model.tierIcon}</span>` : ''}
+                    ${isCustom ? `<span class="material-symbols-outlined text-xs ${isSelected ? 'text-white' : 'text-primary'}" title="Custom Model">build</span>` : ''}
+                  </div>
                   <div class="flex items-center gap-2">
-                    <p class="text-sm font-medium">${model.model}</p>
-                    ${isCustom ? '<span class="px-2 py-0.5 text-xs font-medium bg-primary/20 text-primary rounded">Custom</span>' : ''}
-                    ${hasTier ? `<span class="flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded">
-                      <span class="material-symbols-outlined text-xs ${model.tierColor}">${model.tierIcon}</span>
-                      <span class="${model.tierColor}">${model.tier}</span>
-                    </span>` : ''}
+                    <span class="text-xs opacity-80 whitespace-nowrap">${Utils.formatCurrency(model.input_price_per_1m)}/${Utils.formatCurrency(model.output_price_per_1m)}</span>
+                    ${isCustom ? `
+                      <button class="edit-custom-model-btn p-0.5 rounded hover:bg-white/20 transition-colors"
+                              data-provider="${model.provider}"
+                              data-model="${model.model}"
+                              title="Edit custom model"
+                              onclick="event.stopPropagation()">
+                        <span class="material-symbols-outlined text-sm ${isSelected ? 'text-white' : 'text-text-light/70 dark:text-text-dark/70'}">edit</span>
+                      </button>
+                      <button class="delete-custom-model-btn p-0.5 rounded hover:bg-white/20 transition-colors"
+                              data-provider="${model.provider}"
+                              data-model="${model.model}"
+                              title="Delete custom model"
+                              onclick="event.stopPropagation()">
+                        <span class="material-symbols-outlined text-sm ${isSelected ? 'text-white' : 'text-red-600 dark:text-red-400'}">delete</span>
+                      </button>
+                    ` : ''}
                   </div>
-                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">
-                    ${Utils.formatCurrency(model.input_price_per_1m)} / ${Utils.formatCurrency(model.output_price_per_1m)} per 1M tokens
-                  </p>
                 </div>
-                ${isCustom ? `
-                  <div class="flex items-center gap-1">
-                    <button class="edit-custom-model-btn p-1.5 rounded hover:bg-primary/10 transition-colors"
-                            data-provider="${model.provider}"
-                            data-model="${model.model}"
-                            title="Edit custom model">
-                      <span class="material-symbols-outlined text-sm text-text-light/70 dark:text-text-dark/70">edit</span>
-                    </button>
-                    <button class="delete-custom-model-btn p-1.5 rounded hover:bg-red-500/10 transition-colors"
-                            data-provider="${model.provider}"
-                            data-model="${model.model}"
-                            title="Delete custom model">
-                      <span class="material-symbols-outlined text-sm text-red-600 dark:text-red-400">delete</span>
-                    </button>
-                  </div>
-                ` : ''}
-              </label>
-            `;
-          }).join('')}
+              `;
+            }).join('')}
+          </div>
         </div>
       `;
     }).join('');
+
+    // Add click event listeners to pills
+    this.setupModelPillListeners();
+  },
+
+  /**
+   * Setup event listeners for model pills
+   */
+  setupModelPillListeners() {
+    document.querySelectorAll('.model-pill').forEach(pill => {
+      pill.addEventListener('click', (e) => {
+        // Don't toggle if clicking on edit/delete buttons
+        if (e.target.closest('.edit-custom-model-btn') || e.target.closest('.delete-custom-model-btn')) {
+          return;
+        }
+
+        const provider = pill.dataset.provider;
+        const modelName = pill.dataset.model;
+        const model = this.models.find(m => m.provider === provider && m.model === modelName);
+
+        if (!model) return;
+
+        const isSelected = this.selectedModels.some(m =>
+          m.provider === provider && m.model === modelName
+        );
+
+        if (isSelected) {
+          this.removeModelFromSelection(provider, modelName);
+        } else {
+          this.addModelToSelection(model);
+        }
+      });
+    });
   },
 
   /**
@@ -603,7 +641,7 @@ const App = {
 
     this.selectedModels.push(model);
     this.updateSelectedModelsDisplay();
-    this.updateModelSelectorCheckboxes();
+    this.renderModelSelector(); // Re-render pills with updated selection
     this.updateDynamicLimits(); // Update limits based on new selection
     this.calculate();
   },
@@ -616,7 +654,7 @@ const App = {
       !(m.provider === provider && m.model === modelName)
     );
     this.updateSelectedModelsDisplay();
-    this.updateModelSelectorCheckboxes();
+    this.renderModelSelector(); // Re-render pills with updated selection
     this.updateDynamicLimits(); // Update limits based on new selection
     this.calculate();
   },
@@ -783,27 +821,31 @@ const App = {
       this.calculate();
     });
 
-    // RPM (Requests Per Minute)
-    const sharedRpm = document.getElementById('shared-rpm');
-    const sharedRpmSlider = document.getElementById('shared-rpm-slider');
+    // Requests Per Day
+    const sharedRequestsPerDay = document.getElementById('shared-requests-per-day');
+    const sharedRequestsPerDaySlider = document.getElementById('shared-requests-per-day-slider');
 
-    sharedRpm?.addEventListener('input', (e) => {
-      const value = parseFloat(e.target.value) || 0.01;
-      if (sharedRpmSlider) {
-        sharedRpmSlider.value = value;
+    sharedRequestsPerDay?.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value) || 1;
+      if (sharedRequestsPerDaySlider) {
+        sharedRequestsPerDaySlider.value = value;
       }
-      this.sharedConfig.rpm = value;
+      this.sharedConfig.requestsPerDay = value;
+      this.sharedConfig.rpm = value / 1440; // Convert to RPM (1440 minutes per day)
+      this.updateRPMDisplay();
       this.selectPreset('custom'); // Switch to custom when user manually changes
       this.updateRuntimeEstimate();
       this.calculate();
     });
 
-    sharedRpmSlider?.addEventListener('input', (e) => {
-      const value = parseFloat(e.target.value) || 0.01;
-      if (sharedRpm) {
-        sharedRpm.value = value;
+    sharedRequestsPerDaySlider?.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value) || 1;
+      if (sharedRequestsPerDay) {
+        sharedRequestsPerDay.value = value;
       }
-      this.sharedConfig.rpm = value;
+      this.sharedConfig.requestsPerDay = value;
+      this.sharedConfig.rpm = value / 1440; // Convert to RPM (1440 minutes per day)
+      this.updateRPMDisplay();
       this.selectPreset('custom'); // Switch to custom when user manually changes
       this.updateRuntimeEstimate();
       this.calculate();
@@ -873,20 +915,7 @@ const App = {
       }
     });
 
-    // Model checkboxes
-    document.addEventListener('change', (e) => {
-      if (e.target.classList.contains('model-checkbox')) {
-        const provider = e.target.dataset.provider;
-        const modelName = e.target.dataset.model;
-        const model = this.models.find(m => m.provider === provider && m.model === modelName);
-
-        if (e.target.checked) {
-          this.addModelToSelection(model);
-        } else {
-          this.removeModelFromSelection(provider, modelName);
-        }
-      }
-    });
+    // Model pills are handled by setupModelPillListeners() called from renderModelSelector()
 
     // Remove model buttons
     document.addEventListener('click', (e) => {
@@ -931,6 +960,12 @@ const App = {
       panel.classList.toggle('hidden');
     });
 
+    // Preset toggle button
+    document.getElementById('preset-toggle')?.addEventListener('click', () => {
+      this.sharedConfig.presetsCollapsed = !this.sharedConfig.presetsCollapsed;
+      this.togglePresetsCollapsed();
+    });
+
     // Usage preset buttons
     document.querySelectorAll('.usage-preset-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -946,10 +981,10 @@ const App = {
         // Apply preset values
         const inputTokens = parseInt(button.dataset.input);
         const outputTokens = parseInt(button.dataset.output);
-        const rpm = parseFloat(button.dataset.rpm);
+        const requestsPerDay = parseInt(button.dataset.requestsPerDay);
         const duration = button.dataset.duration;
 
-        this.applyPreset(preset, inputTokens, outputTokens, rpm, duration);
+        this.applyPreset(preset, inputTokens, outputTokens, requestsPerDay, duration);
       });
     });
   },
@@ -957,11 +992,12 @@ const App = {
   /**
    * Apply a usage preset
    */
-  applyPreset(presetName, inputTokens, outputTokens, rpm, duration) {
+  applyPreset(presetName, inputTokens, outputTokens, requestsPerDay, duration) {
     // Update config
     this.sharedConfig.inputTokens = inputTokens;
     this.sharedConfig.outputTokens = outputTokens;
-    this.sharedConfig.rpm = rpm;
+    this.sharedConfig.requestsPerDay = requestsPerDay;
+    this.sharedConfig.rpm = requestsPerDay / 1440; // Convert to RPM
     this.sharedConfig.duration = duration;
     this.sharedConfig.calcMode = 'duration';
     this.sharedConfig.selectedPreset = presetName;
@@ -971,8 +1007,8 @@ const App = {
     document.getElementById('shared-input-slider').value = inputTokens;
     document.getElementById('shared-output-tokens').value = outputTokens;
     document.getElementById('shared-output-slider').value = outputTokens;
-    document.getElementById('shared-rpm').value = rpm;
-    document.getElementById('shared-rpm-slider').value = rpm;
+    document.getElementById('shared-requests-per-day').value = requestsPerDay;
+    document.getElementById('shared-requests-per-day-slider').value = requestsPerDay;
     document.getElementById('duration-select').value = duration;
     document.getElementById('calc-mode-duration').checked = true;
 
@@ -982,6 +1018,9 @@ const App = {
 
     // Toggle days per month field visibility
     this.toggleDaysPerMonthField();
+
+    // Update RPM display
+    this.updateRPMDisplay();
 
     // Update preset selection visual state
     this.selectPreset(presetName);
@@ -1038,6 +1077,50 @@ const App = {
       } else {
         daysPerMonthContainer.classList.add('hidden');
       }
+    }
+  },
+
+  /**
+   * Update RPM display based on requests per day
+   */
+  updateRPMDisplay() {
+    const rpmDisplay = document.getElementById('rpm-display');
+    if (!rpmDisplay) return;
+
+    const rpm = this.sharedConfig.rpm;
+    rpmDisplay.textContent = `~${rpm.toFixed(2)} RPM`;
+  },
+
+  /**
+   * Toggle collapsed state of usage presets section
+   */
+  togglePresetsCollapsed() {
+    const presetList = document.getElementById('preset-list');
+    const presetDescription = document.getElementById('preset-description');
+    const toggleIcon = document.querySelector('#preset-toggle .material-symbols-outlined:last-child');
+
+    if (!presetList || !toggleIcon) return;
+
+    if (this.sharedConfig.presetsCollapsed) {
+      // Collapsed state - show only selected preset
+      const selectedPreset = this.sharedConfig.selectedPreset;
+      document.querySelectorAll('.usage-preset-btn').forEach(btn => {
+        const btnPreset = btn.dataset.preset;
+        if (btnPreset === selectedPreset) {
+          btn.style.display = '';
+        } else {
+          btn.style.display = 'none';
+        }
+      });
+      if (presetDescription) presetDescription.classList.add('hidden');
+      toggleIcon.textContent = 'expand_more';
+    } else {
+      // Expanded state - show all presets
+      document.querySelectorAll('.usage-preset-btn').forEach(btn => {
+        btn.style.display = '';
+      });
+      if (presetDescription) presetDescription.classList.remove('hidden');
+      toggleIcon.textContent = 'expand_less';
     }
   },
 
@@ -1634,6 +1717,38 @@ const App = {
    * Setup event listeners for expandable table rows
    */
   setupExpandableRows() {
+    const expandableRows = document.querySelectorAll('.expandable-row');
+
+    // Auto-expand first row if only one model selected, or if it's the default GPT-5 model
+    if (expandableRows.length === 1) {
+      // Only one model - auto-expand it
+      const rowId = expandableRows[0].dataset.rowId;
+      const content = document.getElementById(`${rowId}-content`);
+      const icon = document.querySelector(`.expand-icon[data-row-id="${rowId}"]`);
+
+      if (content && icon) {
+        content.classList.add('open');
+        icon.classList.add('rotated');
+        icon.textContent = 'expand_less';
+      }
+    } else if (expandableRows.length > 1 && this.currentResults) {
+      // Multiple models - check if GPT-5 is among them and auto-expand it
+      const gpt5Result = this.currentResults.find(r => r.model.model === 'GPT-5');
+      if (gpt5Result) {
+        const gpt5Index = this.currentResults.indexOf(gpt5Result);
+        const rowId = `row-${gpt5Index}`;
+        const content = document.getElementById(`${rowId}-content`);
+        const icon = document.querySelector(`.expand-icon[data-row-id="${rowId}"]`);
+
+        if (content && icon) {
+          content.classList.add('open');
+          icon.classList.add('rotated');
+          icon.textContent = 'expand_less';
+        }
+      }
+    }
+
+    // Add click event listeners for toggling
     document.querySelectorAll('.expandable-row, .expand-icon').forEach(element => {
       element.addEventListener('click', (e) => {
         const rowId = element.dataset.rowId || e.target.dataset.rowId;
@@ -1706,12 +1821,14 @@ const App = {
     this.sharedConfig = {
       inputTokens: 5000,
       outputTokens: 1500,
-      rpm: 20,
+      requestsPerDay: 100,
+      rpm: 100 / 1440, // Calculated from requestsPerDay
       calcMode: 'duration',
       duration: 'day',
       totalRequests: 100,
       daysPerMonth: 30,
-      selectedPreset: 'custom'
+      selectedPreset: 'custom',
+      presetsCollapsed: true
     };
 
     // Reset provider filter
@@ -1722,8 +1839,8 @@ const App = {
     const sharedInputSlider = document.getElementById('shared-input-slider');
     const sharedOutputTokens = document.getElementById('shared-output-tokens');
     const sharedOutputSlider = document.getElementById('shared-output-slider');
-    const sharedRpm = document.getElementById('shared-rpm');
-    const sharedRpmSlider = document.getElementById('shared-rpm-slider');
+    const sharedRequestsPerDay = document.getElementById('shared-requests-per-day');
+    const sharedRequestsPerDaySlider = document.getElementById('shared-requests-per-day-slider');
     const calcModeDuration = document.getElementById('calc-mode-duration');
     const durationSelect = document.getElementById('duration-select');
     const totalRequestsInput = document.getElementById('total-requests-input');
@@ -1732,8 +1849,8 @@ const App = {
     if (sharedInputSlider) sharedInputSlider.value = 5000;
     if (sharedOutputTokens) sharedOutputTokens.value = 1500;
     if (sharedOutputSlider) sharedOutputSlider.value = 1500;
-    if (sharedRpm) sharedRpm.value = 20;
-    if (sharedRpmSlider) sharedRpmSlider.value = 20;
+    if (sharedRequestsPerDay) sharedRequestsPerDay.value = 100;
+    if (sharedRequestsPerDaySlider) sharedRequestsPerDaySlider.value = 100;
     if (calcModeDuration) calcModeDuration.checked = true;
     if (durationSelect) durationSelect.value = 'day';
     if (totalRequestsInput) {
@@ -1768,12 +1885,14 @@ const App = {
 
     // Update displays
     this.updateSelectedModelsDisplay();
-    this.updateModelSelectorCheckboxes();
     this.clearResults();
+    this.updateRPMDisplay();
+    this.renderModelSelector(); // Re-render pills to reset provider filter and selection
 
     // Reset preset selection and days per month visibility
     this.selectPreset('custom');
     this.toggleDaysPerMonthField();
+    this.togglePresetsCollapsed();
 
     // Reinitialize with default model
     const gpt5 = this.models.find(m => m.model === 'GPT-5');
