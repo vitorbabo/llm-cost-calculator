@@ -33,6 +33,9 @@ build/
 .env.test.local
 .env.production.local
 
+# Custom configuration (use config.example.json as template)
+config.json
+
 # Temporary files
 tmp/
 temp/

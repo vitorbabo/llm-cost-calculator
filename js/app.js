@@ -7,6 +7,7 @@ const App = {
   models: [],
   customModels: [], // Array of user-created custom models
   selectedModels: [], // Array of selected model objects
+  config: null, // Application configuration from config.json
   sharedConfig: {
     inputTokens: 5000,
     outputTokens: 1500,
@@ -25,6 +26,12 @@ const App = {
     console.log('Initializing LLM Cost Calculator...');
 
     try {
+      // Load configuration
+      await this.loadConfig();
+
+      // Apply configuration to UI
+      this.applyConfig();
+
       // Load models from CSV
       await this.loadModels();
 
@@ -45,6 +52,102 @@ const App = {
       console.error('Failed to initialize app:', error);
       this.showError('Failed to load models data');
     }
+  },
+
+  /**
+   * Load configuration from config.json
+   */
+  async loadConfig() {
+    try {
+      const response = await fetch('config.json');
+      if (response.ok) {
+        this.config = await response.json();
+        console.log('Configuration loaded:', this.config);
+      } else {
+        console.log('No config.json found, using defaults');
+        this.config = this.getDefaultConfig();
+      }
+    } catch (error) {
+      console.log('Error loading config.json, using defaults:', error);
+      this.config = this.getDefaultConfig();
+    }
+  },
+
+  /**
+   * Get default configuration
+   */
+  getDefaultConfig() {
+    return {
+      branding: {
+        title: 'LLM Cost Calculator',
+        logo: {
+          enabled: false,
+          url: '',
+          alt: 'Logo'
+        }
+      },
+      apiKeyButton: {
+        enabled: false,
+        text: 'Get API Key',
+        url: 'https://platform.openai.com/api-keys',
+        providers: {}
+      },
+      theme: {
+        primaryColor: '#ffa500'
+      }
+    };
+  },
+
+  /**
+   * Apply configuration to UI
+   */
+  applyConfig() {
+    if (!this.config) return;
+
+    // Apply branding
+    if (this.config.branding) {
+      // Set title
+      if (this.config.branding.title) {
+        const titleElement = document.getElementById('app-title');
+        if (titleElement) {
+          titleElement.textContent = this.config.branding.title;
+        }
+        document.title = this.config.branding.title;
+      }
+
+      // Set logo
+      if (this.config.branding.logo && this.config.branding.logo.enabled) {
+        const logoElement = document.getElementById('custom-logo');
+        const defaultIcon = document.getElementById('default-icon');
+
+        if (logoElement && this.config.branding.logo.url) {
+          logoElement.src = this.config.branding.logo.url;
+          logoElement.alt = this.config.branding.logo.alt || 'Logo';
+          logoElement.classList.remove('hidden');
+          if (defaultIcon) {
+            defaultIcon.classList.add('hidden');
+          }
+        }
+      }
+    }
+
+    // Apply API key button configuration
+    if (this.config.apiKeyButton && this.config.apiKeyButton.enabled) {
+      const apiKeyButton = document.getElementById('api-key-button');
+      const apiKeyButtonText = document.getElementById('api-key-button-text');
+
+      if (apiKeyButton) {
+        apiKeyButton.href = this.config.apiKeyButton.url || '#';
+        apiKeyButton.classList.remove('hidden');
+        apiKeyButton.classList.add('flex');
+
+        if (apiKeyButtonText && this.config.apiKeyButton.text) {
+          apiKeyButtonText.textContent = this.config.apiKeyButton.text;
+        }
+      }
+    }
+
+    console.log('Configuration applied to UI');
   },
 
   /**
