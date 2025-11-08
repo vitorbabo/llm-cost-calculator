@@ -36,28 +36,34 @@
 <body class="font-display bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark">
 <div class="relative flex h-auto min-h-screen w-full flex-col">
   <!-- Top Nav Bar -->
-  <header class="flex items-center justify-between whitespace-nowrap border-b border-border-light dark:border-border-dark px-4 sm:px-6 lg:px-8 py-3 bg-surface-light dark:bg-surface-dark/50 sticky top-0 z-10 backdrop-blur-sm">
-    <div class="flex items-center gap-4">
-      <!-- Custom Logo Placeholder (hidden by default, shown via config) -->
-      <img id="custom-logo" class="hidden h-8 w-auto" alt="Logo" />
-      <!-- Default Icon (shown when no custom logo) -->
-      <div id="default-icon" class="text-primary size-6">
-        <svg fill="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.59L5.41 11 4 12.41 11 19.41 20 10.41 18.59 9 11 16.59z"></path>
-        </svg>
+  <header class="border-b border-border-light dark:border-border-dark py-3 bg-surface-light dark:bg-surface-dark/50 sticky top-0 z-10 backdrop-blur-sm">
+    <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-1 lg:grid-cols-6 gap-8 items-center">
+        <!-- Left side: Logo and Title (aligned with left column) -->
+        <div class="lg:col-span-2 flex items-center gap-4 whitespace-nowrap">
+          <!-- Custom Logo Placeholder (hidden by default, shown via config) -->
+          <img id="custom-logo" class="hidden h-8 w-auto" alt="Logo" />
+          <!-- Default Icon (shown when no custom logo) -->
+          <div id="default-icon" class="text-primary size-6">
+            <svg fill="currentColor" viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.59L5.41 11 4 12.41 11 19.41 20 10.41 18.59 9 11 16.59z"></path>
+            </svg>
+          </div>
+          <h2 id="app-title" class="text-lg font-bold">LLM Cost Calculator</h2>
+        </div>
+        <!-- Right side: Buttons (aligned with right column) -->
+        <div class="lg:col-span-4 flex items-center justify-end gap-3">
+          <!-- API Key Button (hidden by default, shown via config) -->
+          <a id="api-key-button" href="#" target="_blank" class="hidden items-center gap-2 px-4 py-2 text-xs font-bold bg-background-light dark:bg-background-dark text-text-light rounded-lg h-10 hover:bg-border-light dark:text-text-dark dark:hover:bg-border-dark transition-colors">
+            <span class="material-symbols-outlined text-md">key</span>
+            <span id="api-key-button-text">Get API Key</span>
+          </a>
+          <button id="dark-mode-toggle" class="flex items-center justify-center rounded-lg h-10 w-10 bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark hover:bg-border-light dark:hover:bg-border-dark transition-colors">
+            <span class="material-symbols-outlined dark:hidden">dark_mode</span>
+            <span class="material-symbols-outlined hidden dark:inline">light_mode</span>
+          </button>
+        </div>
       </div>
-      <h2 id="app-title" class="text-lg font-bold">LLM Cost Calculator</h2>
-    </div>
-    <div class="flex items-center gap-3">
-      <!-- API Key Button (hidden by default, shown via config) -->
-      <a id="api-key-button" href="#" target="_blank" class="hidden items-center gap-2 px-4 py-2 text-xs font-bold bg-background-light dark:bg-background-dark text-text-light rounded-lg h-10 hover:bg-border-light dark:text-text-dark dark:hover:bg-border-dark transition-colors">
-        <span class="material-symbols-outlined text-md">key</span>
-        <span id="api-key-button-text">Get API Key</span>
-      </a>
-      <button id="dark-mode-toggle" class="flex items-center justify-center rounded-lg h-10 w-10 bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark hover:bg-border-light dark:hover:bg-border-dark transition-colors">
-        <span class="material-symbols-outlined dark:hidden">dark_mode</span>
-        <span class="material-symbols-outlined hidden dark:inline">light_mode</span>
-      </button>
     </div>
   </header>
 
