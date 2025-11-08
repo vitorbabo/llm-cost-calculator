@@ -773,7 +773,7 @@ const App = {
 
       // Calculate utilization for this model
       const rpmUtil = model.rpm_limit ? (requestsPerMinute / model.rpm_limit * 100) : 0;
-      const totalTokens = result.inputTokens + result.outputTokens;
+      const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
       const tokensPerMinute = totalTokens * requestsPerMinute;
       const tpmUtil = model.tpm_limit ? (tokensPerMinute / model.tpm_limit * 100) : 0;
       const modelUtil = Math.max(rpmUtil, tpmUtil);
@@ -804,7 +804,7 @@ const App = {
 
     tbody.innerHTML = results.map(result => {
       const model = result.model;
-      const totalTokens = result.inputTokens + result.outputTokens;
+      const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
 
       // Convert requests to per-minute based on timeframe
       let requestsPerMinute = this.sharedConfig.requests;
