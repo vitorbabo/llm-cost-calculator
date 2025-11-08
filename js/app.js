@@ -626,14 +626,8 @@ const App = {
       return;
     }
 
-    // Convert requests to per-minute based on timeframe
-    let requestsPerMinute = this.sharedConfig.requests;
-    switch (this.currentTimeframe) {
-      case 'hour': requestsPerMinute = this.sharedConfig.requests / 60; break;
-      case 'day': requestsPerMinute = this.sharedConfig.requests / (60 * 24); break;
-      case 'month': requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30); break;
-      case 'total': requestsPerMinute = this.sharedConfig.requests / 60; break;
-    }
+    // RPM is now directly available in config
+    const requestsPerMinute = this.sharedConfig.rpm;
 
     // Calculate average utilization across all models
     let totalUtilization = 0;
@@ -737,13 +731,7 @@ const App = {
 
       // Calculate overall quota usage for badge
       const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
-      let requestsPerMinute = this.sharedConfig.requests;
-      switch (this.currentTimeframe) {
-        case 'hour': requestsPerMinute = this.sharedConfig.requests / 60; break;
-        case 'day': requestsPerMinute = this.sharedConfig.requests / (60 * 24); break;
-        case 'month': requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30); break;
-        case 'total': requestsPerMinute = this.sharedConfig.requests / 60; break;
-      }
+      const requestsPerMinute = this.sharedConfig.rpm;
       const tokensPerMinute = totalTokens * requestsPerMinute;
 
       const contextUsage = result.model.context_window ? (totalTokens / result.model.context_window * 100) : 0;
@@ -843,15 +831,8 @@ const App = {
     const model = result.model;
     const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
 
-    // Convert requests to per-minute based on timeframe
-    let requestsPerMinute = this.sharedConfig.requests;
-    switch (this.currentTimeframe) {
-      case 'hour': requestsPerMinute = this.sharedConfig.requests / 60; break;
-      case 'day': requestsPerMinute = this.sharedConfig.requests / (60 * 24); break;
-      case 'month': requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30); break;
-      case 'total': requestsPerMinute = this.sharedConfig.requests / 60; break;
-    }
-
+    // RPM is now directly available in config
+    const requestsPerMinute = this.sharedConfig.rpm;
     const tokensPerMinute = totalTokens * requestsPerMinute;
 
     // Calculate usage percentages
@@ -958,13 +939,7 @@ const App = {
 
       // Calculate quota usage
       const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
-      let requestsPerMinute = this.sharedConfig.requests;
-      switch (this.currentTimeframe) {
-        case 'hour': requestsPerMinute = this.sharedConfig.requests / 60; break;
-        case 'day': requestsPerMinute = this.sharedConfig.requests / (60 * 24); break;
-        case 'month': requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30); break;
-        case 'total': requestsPerMinute = this.sharedConfig.requests / 60; break;
-      }
+      const requestsPerMinute = this.sharedConfig.rpm;
       const tokensPerMinute = totalTokens * requestsPerMinute;
 
       const contextUsage = result.model.context_window ? (totalTokens / result.model.context_window * 100) : 0;
@@ -992,7 +967,6 @@ const App = {
               <span class="model-tooltip" data-provider="${result.model.provider}">${result.model.model}</span>
             </div>
           </th>
-          <td class="px-6 py-4 ${opacity}">${Utils.formatNumber(result.model.context_window)}</td>
           <td class="px-6 py-4 ${opacity}">
             ${Utils.formatCurrency(result.model.input_price_per_1m)} / ${Utils.formatCurrency(result.model.output_price_per_1m)}
           </td>
@@ -1004,7 +978,7 @@ const App = {
           </td>
         </tr>
         <tr id="${rowId}-expanded" class="border-b border-border-light dark:border-border-dark">
-          <td colspan="5" class="p-0">
+          <td colspan="4" class="p-0">
             <div class="expanded-content" id="${rowId}-content">
               ${expandedContent}
             </div>
@@ -1080,9 +1054,9 @@ const App = {
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <!-- Cost Details -->
-          <div>
+          <div class="md:col-span-2">
             <h4 class="font-semibold text-sm mb-3 text-primary">Cost Details</h4>
             <div class="space-y-2 text-sm">
               <div class="flex justify-between">

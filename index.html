@@ -273,7 +273,7 @@
                 <span class="text-sm font-medium">Average Input Tokens</span>
                 <input type="number" id="shared-input-tokens" value="5000" min="1" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
               </label>
-              <input type="range" id="shared-input-slider" value="5000" min="1" max="10000" step="1" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
+              <input type="range" id="shared-input-slider" value="5000" min="1" max="10000" step="1" aria-label="Average Input Tokens slider" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
             </div>
 
             <!-- Average Completion Tokens -->
@@ -282,7 +282,7 @@
                 <span class="text-sm font-medium">Average Output Tokens</span>
                 <input type="number" id="shared-output-tokens" value="1500" min="1" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
               </label>
-              <input type="range" id="shared-output-slider" value="1500" min="1" max="10000" step="1" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
+              <input type="range" id="shared-output-slider" value="1500" min="1" max="10000" step="1" aria-label="Average Output Tokens slider" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
             </div>
 
             <!-- Requests Per Minute (RPM) -->
@@ -291,7 +291,7 @@
                 <span class="text-sm font-medium">Requests Per Minute (RPM)</span>
                 <input type="number" id="shared-rpm" value="100" min="1" max="250" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
               </label>
-              <input type="range" id="shared-rpm-slider" value="100" min="1" max="250" step="1" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
+              <input type="range" id="shared-rpm-slider" value="100" min="1" max="250" step="1" aria-label="Requests Per Minute slider" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
               <p class="text-xs text-text-light/60 dark:text-text-dark/60">Request rate for throughput validation (max: <span id="rpm-limit-display">250</span>)</p>
             </div>
 
@@ -307,7 +307,7 @@
                     <span class="font-medium">Duration</span>
                     <span class="text-text-light/60 dark:text-text-dark/60"> - Cost for RPM over time</span>
                   </label>
-                  <select id="duration-select" class="form-select w-full text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary">
+                  <select id="duration-select" aria-label="Duration for cost calculation" class="form-select w-full text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary">
                     <option value="hour">Per Hour</option>
                     <option value="day" selected>Per Day</option>
                     <option value="month">Per Month</option>
@@ -323,7 +323,7 @@
                     <span class="font-medium">Total Requests</span>
                     <span class="text-text-light/60 dark:text-text-dark/60"> - Cost for fixed volume</span>
                   </label>
-                  <input type="number" id="total-requests-input" value="10000" min="1" max="10000000" step="1000" class="w-full text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary disabled:opacity-50" disabled/>
+                  <input type="number" id="total-requests-input" value="10000" min="1" max="10000000" step="1000" aria-label="Total number of requests" class="w-full text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary disabled:opacity-50" disabled/>
                   <p class="text-xs text-text-light/60 dark:text-text-dark/60" id="runtime-estimate">Runtime: ~100 minutes at 100 RPM</p>
                 </div>
               </div>
@@ -486,7 +486,6 @@
               <thead class="text-xs uppercase bg-background-light dark:bg-background-dark">
                 <tr>
                   <th class="px-6 py-3" scope="col">Model</th>
-                  <th class="px-6 py-3" scope="col">Max Context</th>
                   <th class="px-6 py-3" scope="col">Price (In/Out)</th>
                   <th class="px-6 py-3" scope="col">Tokens (In/Out)</th>
                   <th class="px-6 py-3 text-right" scope="col">Total Cost</th>
@@ -494,7 +493,7 @@
               </thead>
               <tbody id="comparison-table-body">
                 <tr>
-                  <td colspan="5" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
+                  <td colspan="4" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
                     Select models to see results
                   </td>
                 </tr>
