@@ -42,102 +42,122 @@ const Calculator = {
   /**
    * Calculate total cost based on request frequency
    * @param {Object} requestCost - Single request cost
-   * @param {number} requestsPerMinute - Number of requests per minute
-   * @param {string} timeframe - 'minute', 'hour', or 'day'
+   * @param {number} rpm - Requests per minute (for quota validation)
+   * @param {Object} options - Calculation options
+   * @param {string} options.mode - 'duration' or 'total'
+   * @param {string} options.duration - 'hour', 'day', or 'month' (if mode is 'duration')
+   * @param {number} options.totalRequests - Total number of requests (if mode is 'total')
    * @param {Object} model - Model data (needed for PTU pricing)
    * @returns {Object} Cost breakdown with totals
    */
-  calculateTotalCost(requestCost, requestsPerMinute, timeframe = 'minute', model = null) {
-    let multiplier = 1;
-    let period = 'minute';
-
-    // Handle different timeframes
-    switch (timeframe) {
-      case 'hour':
-        multiplier = 60;
-        period = 'hour';
-        break;
-      case 'day':
-        multiplier = 60 * 24;
-        period = 'day';
-        break;
-      case 'month':
-        multiplier = 60 * 24 * 30;
-        period = 'month';
-        break;
-      case 'total':
-        multiplier = 1;
-        period = 'total';
-        break;
-      case 'minute':
-      default:
-        multiplier = 1;
-        period = 'minute';
+  calculateTotalCost(requestCost, rpm, options = {}, model = null) {
+    // Support legacy call signature for backwards compatibility
+    if (typeof options === 'string') {
+      const timeframe = options;
+      options = { mode: timeframe === 'total' ? 'total' : 'duration', duration: timeframe };
+      if (timeframe === 'total') {
+        options.totalRequests = rpm; // Legacy: rpm param was total requests
+        rpm = 100; // Use a default RPM for legacy calls
+      }
     }
 
-    // For "total" mode, requestsPerMinute is actually the total number of requests
-    const totalRequests = timeframe === 'total' ? requestsPerMinute : requestsPerMinute * multiplier;
-    const totalInputTokens = requestCost.inputTokens * totalRequests;
-    const totalOutputTokens = requestCost.outputTokens * totalRequests;
+    const { mode = 'duration', duration = 'day', totalRequests = 10000 } = options;
+
+    let multiplier = 1;
+    let period = duration;
+    let calculatedTotalRequests = 0;
+    let runtimeMinutes = 0;
+
+    // Calculate total requests based on mode
+    if (mode === 'total') {
+      // Total requests mode: use provided total
+      calculatedTotalRequests = totalRequests;
+      runtimeMinutes = rpm > 0 ? totalRequests / rpm : 0;
+      period = 'total';
+    } else {
+      // Duration mode: calculate from RPM × time
+      switch (duration) {
+        case 'hour':
+          multiplier = 60;
+          break;
+        case 'day':
+          multiplier = 60 * 24; // 1,440 minutes
+          break;
+        case 'month':
+          multiplier = 60 * 24 * 30; // 43,200 minutes
+          break;
+        default:
+          multiplier = 60 * 24; // Default to day
+      }
+      calculatedTotalRequests = rpm * multiplier;
+      runtimeMinutes = multiplier;
+    }
+
+    const totalInputTokens = requestCost.inputTokens * calculatedTotalRequests;
+    const totalOutputTokens = requestCost.outputTokens * calculatedTotalRequests;
 
     // Handle PTU pricing
     if (requestCost.isPTU && model && model.ptu_price_monthly) {
       const ptuMonthlyPrice = parseFloat(model.ptu_price_monthly) || 0;
       let totalCost = ptuMonthlyPrice;
 
-      // Prorate PTU cost based on timeframe
-      // For "total" mode, we can't prorate PTU since it's a fixed monthly cost
-      switch (timeframe) {
-        case 'minute':
-          totalCost = ptuMonthlyPrice / (30 * 24 * 60);
-          break;
-        case 'hour':
-          totalCost = ptuMonthlyPrice / (30 * 24);
-          break;
-        case 'day':
-          totalCost = ptuMonthlyPrice / 30;
-          break;
-        case 'month':
-          totalCost = ptuMonthlyPrice;
-          break;
-        case 'total':
-          // For total requests, we can't determine the timeframe, so show N/A
-          // PTU pricing doesn't work well with absolute request counts
-          totalCost = 0;
-          break;
+      // Prorate PTU cost based on mode and duration
+      if (mode === 'total') {
+        // For total requests, prorate based on runtime
+        const monthsRuntime = runtimeMinutes / (30 * 24 * 60);
+        totalCost = ptuMonthlyPrice * monthsRuntime;
+      } else {
+        // Prorate based on duration
+        switch (duration) {
+          case 'hour':
+            totalCost = ptuMonthlyPrice / (30 * 24);
+            break;
+          case 'day':
+            totalCost = ptuMonthlyPrice / 30;
+            break;
+          case 'month':
+            totalCost = ptuMonthlyPrice;
+            break;
+        }
       }
 
       return {
+        mode,
         period,
-        totalRequests,
+        duration: mode === 'duration' ? duration : null,
+        rpm,
+        totalRequests: calculatedTotalRequests,
+        runtimeMinutes: mode === 'total' ? runtimeMinutes : null,
         totalInputTokens,
         totalOutputTokens,
         totalInputCost: 0,
         totalOutputCost: 0,
         totalCost,
-        costPerRequest: totalRequests > 0 && timeframe !== 'total' ? totalCost / totalRequests : 0,
+        costPerRequest: calculatedTotalRequests > 0 ? totalCost / calculatedTotalRequests : 0,
         isPTU: true,
-        ptuMonthlyPrice,
-        isTotal: timeframe === 'total'
+        ptuMonthlyPrice
       };
     }
 
     // Handle PAYG pricing
-    const totalInputCost = requestCost.inputCost * totalRequests;
-    const totalOutputCost = requestCost.outputCost * totalRequests;
-    const totalCost = requestCost.totalCost * totalRequests;
+    const totalInputCost = requestCost.inputCost * calculatedTotalRequests;
+    const totalOutputCost = requestCost.outputCost * calculatedTotalRequests;
+    const totalCost = requestCost.totalCost * calculatedTotalRequests;
 
     return {
+      mode,
       period,
-      totalRequests,
+      duration: mode === 'duration' ? duration : null,
+      rpm,
+      totalRequests: calculatedTotalRequests,
+      runtimeMinutes: mode === 'total' ? runtimeMinutes : null,
       totalInputTokens,
       totalOutputTokens,
       totalInputCost,
       totalOutputCost,
       totalCost,
       costPerRequest: requestCost.totalCost,
-      isPTU: false,
-      isTotal: timeframe === 'total'
+      isPTU: false
     };
   },
 
@@ -259,7 +279,7 @@ const Calculator = {
 
   /**
    * Compare multiple models
-   * @param {Array} comparisons - Array of {model, inputTokens, outputTokens, requestsPerMinute, timeframe}
+   * @param {Array} comparisons - Array of {model, inputTokens, outputTokens, rpm, calcMode, duration, totalRequests}
    * @returns {Array} Sorted comparison results
    */
   compareModels(comparisons) {
@@ -270,10 +290,17 @@ const Calculator = {
         comp.outputTokens
       );
 
+      // Build options object for new API
+      const calcOptions = {
+        mode: comp.calcMode || 'duration',
+        duration: comp.duration || 'day',
+        totalRequests: comp.totalRequests || 10000
+      };
+
       const totalCost = this.calculateTotalCost(
         requestCost,
-        comp.requestsPerMinute,
-        comp.timeframe,
+        comp.rpm || comp.requestsPerMinute || 100, // Support both old and new naming
+        calcOptions,
         comp.model  // Pass model for PTU pricing
       );
 
@@ -281,7 +308,7 @@ const Calculator = {
         comp.model,
         comp.inputTokens,
         comp.outputTokens,
-        comp.requestsPerMinute
+        comp.rpm || comp.requestsPerMinute || 100 // Validate based on actual RPM
       );
 
       const maxCapacity = this.calculateMaxCapacity(

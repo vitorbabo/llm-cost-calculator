@@ -285,15 +285,48 @@
               <input type="range" id="shared-output-slider" value="1500" min="1" max="10000" step="1" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
             </div>
 
-            <!-- Requests -->
+            <!-- Requests Per Minute (RPM) -->
             <div class="flex flex-col gap-2">
               <label class="flex items-center justify-between">
-                <span class="text-sm font-medium">
-                  <span id="requests-label">Requests per Minute</span>
-                </span>
-                <input type="number" id="shared-requests" value="100" min="1" max="1000000" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
+                <span class="text-sm font-medium">Requests Per Minute (RPM)</span>
+                <input type="number" id="shared-rpm" value="100" min="1" max="250" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
               </label>
-              <input type="range" id="shared-requests-slider" value="100" min="1" max="1000000" step="1000" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
+              <input type="range" id="shared-rpm-slider" value="100" min="1" max="250" step="1" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
+              <p class="text-xs text-text-light/60 dark:text-text-dark/60">Request rate for throughput validation (max: <span id="rpm-limit-display">250</span>)</p>
+            </div>
+
+            <!-- Cost Calculation Mode -->
+            <div class="flex flex-col gap-3 pt-3 border-t border-border-light/50 dark:border-border-dark/50">
+              <label class="text-sm font-medium">Calculate cost for:</label>
+
+              <!-- Duration Mode -->
+              <div class="flex items-start gap-3">
+                <input type="radio" id="calc-mode-duration" name="calc-mode" value="duration" checked class="mt-1 accent-primary"/>
+                <div class="flex-1 flex flex-col gap-2">
+                  <label for="calc-mode-duration" class="text-sm cursor-pointer">
+                    <span class="font-medium">Duration</span>
+                    <span class="text-text-light/60 dark:text-text-dark/60"> - Cost for RPM over time</span>
+                  </label>
+                  <select id="duration-select" class="form-select w-full text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary">
+                    <option value="hour">Per Hour</option>
+                    <option value="day" selected>Per Day</option>
+                    <option value="month">Per Month</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Total Requests Mode -->
+              <div class="flex items-start gap-3">
+                <input type="radio" id="calc-mode-total" name="calc-mode" value="total" class="mt-1 accent-primary"/>
+                <div class="flex-1 flex flex-col gap-2">
+                  <label for="calc-mode-total" class="text-sm cursor-pointer">
+                    <span class="font-medium">Total Requests</span>
+                    <span class="text-text-light/60 dark:text-text-dark/60"> - Cost for fixed volume</span>
+                  </label>
+                  <input type="number" id="total-requests-input" value="10000" min="1" max="10000000" step="1000" class="w-full text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary disabled:opacity-50" disabled/>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60" id="runtime-estimate">Runtime: ~100 minutes at 100 RPM</p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -304,19 +337,6 @@
               <span>Additional Settings</span>
             </button>
             <div id="advanced-panel" class="hidden mt-4 space-y-4">
-              <!-- Timeframe Selector -->
-              <div class="flex flex-col gap-2">
-                <label class="flex flex-col gap-2">
-                  <p class="text-sm font-medium">Request type</p>
-                  <select id="timeframe-select" class="form-select w-full rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary">
-                    <option value="minute">Per Minute</option>
-                    <option value="hour">Per Hour</option>
-                    <option value="day">Per Day</option>
-                    <option value="month">Per Month</option>
-                    <option value="total" selected>Total Requests</option>
-                  </select>
-                </label>
-              </div>
 
               <!-- Global Unit Settings -->
               <div class="p-3 bg-background-light dark:bg-background-dark rounded-lg">
