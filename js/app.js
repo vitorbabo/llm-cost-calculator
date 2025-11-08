@@ -919,32 +919,6 @@ const App = {
 
     // Model pills are handled by setupModelPillListeners() called from renderModelSelector()
 
-    // Remove model buttons
-    document.addEventListener('click', (e) => {
-      if (e.target.classList.contains('remove-model-btn') || e.target.closest('.remove-model-btn')) {
-        const btn = e.target.classList.contains('remove-model-btn') ? e.target : e.target.closest('.remove-model-btn');
-        const provider = btn.dataset.provider;
-        const modelName = btn.dataset.model;
-        this.removeModelFromSelection(provider, modelName);
-      }
-    });
-
-    // Model search
-    document.getElementById('model-search')?.addEventListener('input', (e) => {
-      const searchTerm = e.target.value.toLowerCase();
-      document.querySelectorAll('.model-option').forEach(option => {
-        const text = option.textContent.toLowerCase();
-        option.style.display = text.includes(searchTerm) ? '' : 'none';
-      });
-
-      // Hide provider groups if all models are hidden
-      document.querySelectorAll('.provider-group').forEach(group => {
-        const visibleModels = Array.from(group.querySelectorAll('.model-option'))
-          .filter(opt => opt.style.display !== 'none');
-        group.style.display = visibleModels.length > 0 ? '' : 'none';
-      });
-    });
-
     // Global unit selection changes
     document.getElementById('global-input-unit')?.addEventListener('change', (e) => {
       this.globalInputUnit = e.target.value;
@@ -1181,12 +1155,13 @@ const App = {
       const runtime = this.sharedConfig.totalRequests / this.sharedConfig.rpm;
       const hours = Math.floor(runtime / 60);
       const minutes = Math.floor(runtime % 60);
+      const rpmRounded = this.sharedConfig.rpm.toFixed(2);
 
       let runtimeText = '';
       if (hours > 0) {
-        runtimeText = `Runtime: ~${hours}h ${minutes}m at ${this.sharedConfig.rpm} RPM`;
+        runtimeText = `Runtime: ~${hours}h ${minutes}m at ${rpmRounded} RPM`;
       } else {
-        runtimeText = `Runtime: ~${minutes} minutes at ${this.sharedConfig.rpm} RPM`;
+        runtimeText = `Runtime: ~${minutes} minutes at ${rpmRounded} RPM`;
       }
 
       estimateEl.textContent = runtimeText;
@@ -1644,15 +1619,17 @@ const App = {
 
     // Build calculation basis text
     let calculationBasis = '';
+    const rpmRounded = parseFloat(result.totalCost.rpm).toFixed(2);
+
     if (result.totalCost.mode === 'total') {
       calculationBasis = `${Utils.formatNumber(result.totalCost.totalRequests)} total requests`;
       if (result.totalCost.runtimeMinutes) {
         const hours = Math.floor(result.totalCost.runtimeMinutes / 60);
         const minutes = Math.floor(result.totalCost.runtimeMinutes % 60);
         if (hours > 0) {
-          calculationBasis += ` (~${hours}h ${minutes}m at ${result.totalCost.rpm} RPM)`;
+          calculationBasis += ` (~${hours}h ${minutes}m at ${rpmRounded} RPM)`;
         } else {
-          calculationBasis += ` (~${minutes} minutes at ${result.totalCost.rpm} RPM)`;
+          calculationBasis += ` (~${minutes} minutes at ${rpmRounded} RPM)`;
         }
       }
     } else {
@@ -1660,7 +1637,7 @@ const App = {
       const durationDisplay = result.totalCost.duration === 'month'
         ? `${result.totalCost.duration} (${this.sharedConfig.daysPerMonth} days)`
         : result.totalCost.duration;
-      calculationBasis = `${result.totalCost.rpm} RPM × ${durationDisplay} = ${Utils.formatNumber(result.totalCost.totalRequests)} requests`;
+      calculationBasis = `${rpmRounded} RPM × ${durationDisplay} = ${Utils.formatNumber(result.totalCost.totalRequests)} requests`;
     }
 
     return `
@@ -1917,15 +1894,6 @@ const App = {
     if (globalOutputUnit) {
       globalOutputUnit.value = 'tokens';
       this.globalOutputUnit = 'tokens';
-    }
-
-    // Clear model search
-    const searchInput = document.getElementById('model-search');
-    if (searchInput) {
-      searchInput.value = '';
-      // Show all model options
-      document.querySelectorAll('.model-option').forEach(opt => opt.style.display = '');
-      document.querySelectorAll('.provider-group').forEach(group => group.style.display = '');
     }
 
     // Update displays
