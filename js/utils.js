@@ -196,6 +196,259 @@ const Utils = {
    */
   generateId() {
     return `calc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  },
+
+  /**
+   * Download a file with specified content
+   * @param {string} content - File content
+   * @param {string} filename - Name of the file to download
+   * @param {string} mimeType - MIME type of the file
+   */
+  downloadFile(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  },
+
+  /**
+   * Generate CSV content from results data
+   * @param {Array} results - Array of calculation results
+   * @param {Object} config - Configuration object with input parameters
+   * @returns {string} CSV content
+   */
+  generateCSV(results, config) {
+    const enabledResults = results.filter(r => r.enabled);
+    if (enabledResults.length === 0) {
+      return 'No results to export';
+    }
+
+    const lines = [];
+
+    // Add header with configuration
+    lines.push('LLM Cost Calculator - Export Results');
+    lines.push('Generated: ' + new Date().toLocaleString());
+    lines.push('');
+
+    // Add configuration section
+    lines.push('Configuration');
+    lines.push(`Average Input Tokens,${config.inputTokens || 0}`);
+    lines.push(`Average Output Tokens,${config.outputTokens || 0}`);
+    lines.push(`Requests Per Minute,${config.rpm || 0}`);
+    lines.push(`Calculation Mode,${config.calcMode || 'duration'}`);
+    if (config.calcMode === 'duration') {
+      lines.push(`Duration,${config.duration || 'day'}`);
+    } else {
+      lines.push(`Total Requests,${config.totalRequests || 0}`);
+    }
+    lines.push('');
+
+    // Add summary section
+    const cheapest = enabledResults[0];
+    lines.push('Summary');
+    lines.push(`Estimated Cost,${this.formatCurrency(cheapest.totalCost.totalCost)}`);
+    const costPer1k = (cheapest.totalCost.totalCost / cheapest.totalCost.totalRequests) * 1000;
+    lines.push(`Cost per 1K Requests,${this.formatCurrency(costPer1k)}`);
+    lines.push(`Total Requests,${this.formatNumber(cheapest.totalCost.totalRequests)}`);
+    lines.push('');
+
+    // Add detailed results table header
+    lines.push('Model Comparison');
+    lines.push('Provider,Model,Input Price ($/1M),Output Price ($/1M),Input Tokens,Output Tokens,Input Cost,Output Cost,Total Cost,Cost per Request,Context Usage %,RPM Usage %,TPM Usage %');
+
+    // Add each model's data
+    enabledResults.forEach(result => {
+      const model = result.model;
+      const requestCost = result.requestCost;
+      const totalCost = result.totalCost;
+      const validation = result.validation;
+
+      const row = [
+        model.provider,
+        model.model,
+        model.input_price,
+        model.output_price,
+        this.formatNumber(config.inputTokens || 0),
+        this.formatNumber(config.outputTokens || 0),
+        requestCost.inputCost.toFixed(6),
+        requestCost.outputCost.toFixed(6),
+        totalCost.totalCost.toFixed(6),
+        requestCost.totalCost.toFixed(6),
+        validation.contextUsage.toFixed(2),
+        validation.rpmUsage.toFixed(2),
+        validation.tpmUsage.toFixed(2)
+      ];
+
+      // Escape commas in fields by wrapping in quotes
+      const escapedRow = row.map(field => {
+        const fieldStr = String(field);
+        return fieldStr.includes(',') ? `"${fieldStr}"` : fieldStr;
+      });
+
+      lines.push(escapedRow.join(','));
+    });
+
+    return lines.join('\n');
+  },
+
+  /**
+   * Export results to CSV file
+   * @param {Array} results - Array of calculation results
+   * @param {Object} config - Configuration object with input parameters
+   */
+  exportToCSV(results, config) {
+    const csvContent = this.generateCSV(results, config);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const filename = `llm-cost-calculator-${timestamp}.csv`;
+    this.downloadFile(csvContent, filename, 'text/csv;charset=utf-8;');
+  },
+
+  /**
+   * Export results to PDF file
+   * @param {Array} results - Array of calculation results
+   * @param {Object} config - Configuration object with input parameters
+   */
+  exportToPDF(results, config) {
+    const enabledResults = results.filter(r => r.enabled);
+    if (enabledResults.length === 0) {
+      alert('No results to export');
+      return;
+    }
+
+    // Check if jsPDF is loaded
+    if (typeof window.jspdf === 'undefined') {
+      alert('PDF library not loaded. Please refresh the page and try again.');
+      return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    let yPos = 20;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
+    const contentWidth = pageWidth - (2 * margin);
+
+    // Title
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.text('LLM Cost Calculator - Results', margin, yPos);
+    yPos += 10;
+
+    // Generated date
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Generated: ${new Date().toLocaleString()}`, margin, yPos);
+    yPos += 15;
+
+    // Configuration section
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text('Configuration', margin, yPos);
+    yPos += 7;
+
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    const configLines = [
+      `Average Input Tokens: ${this.formatNumber(config.inputTokens || 0)}`,
+      `Average Output Tokens: ${this.formatNumber(config.outputTokens || 0)}`,
+      `Requests Per Minute: ${config.rpm || 0}`,
+      `Calculation Mode: ${config.calcMode || 'duration'}`,
+    ];
+
+    if (config.calcMode === 'duration') {
+      configLines.push(`Duration: ${config.duration || 'day'}`);
+    } else {
+      configLines.push(`Total Requests: ${this.formatNumber(config.totalRequests || 0)}`);
+    }
+
+    configLines.forEach(line => {
+      doc.text(line, margin, yPos);
+      yPos += 5;
+    });
+    yPos += 5;
+
+    // Summary section
+    const cheapest = enabledResults[0];
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text('Summary', margin, yPos);
+    yPos += 7;
+
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    const costPer1k = (cheapest.totalCost.totalCost / cheapest.totalCost.totalRequests) * 1000;
+    const summaryLines = [
+      `Estimated Cost: ${this.formatCurrency(cheapest.totalCost.totalCost)}`,
+      `Cost per 1K Requests: ${this.formatCurrency(costPer1k)}`,
+      `Total Requests: ${this.formatNumber(cheapest.totalCost.totalRequests)}`
+    ];
+
+    summaryLines.forEach(line => {
+      doc.text(line, margin, yPos);
+      yPos += 5;
+    });
+    yPos += 10;
+
+    // Model comparison table
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text('Model Comparison', margin, yPos);
+    yPos += 7;
+
+    // Table headers
+    doc.setFontSize(8);
+    doc.setFont(undefined, 'bold');
+    const headers = ['Model', 'Input Price', 'Output Price', 'Total Cost'];
+    const colWidth = contentWidth / headers.length;
+
+    headers.forEach((header, i) => {
+      doc.text(header, margin + (i * colWidth), yPos);
+    });
+    yPos += 5;
+
+    // Draw line under headers
+    doc.line(margin, yPos, pageWidth - margin, yPos);
+    yPos += 5;
+
+    // Table rows
+    doc.setFont(undefined, 'normal');
+    enabledResults.forEach((result, index) => {
+      // Check if we need a new page
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      const model = result.model;
+      const totalCost = result.totalCost;
+
+      const rowData = [
+        `${model.provider} ${model.model}`,
+        `$${model.input_price}/1M`,
+        `$${model.output_price}/1M`,
+        this.formatCurrency(totalCost.totalCost)
+      ];
+
+      rowData.forEach((data, i) => {
+        const text = String(data);
+        const maxWidth = colWidth - 2;
+        const lines = doc.splitTextToSize(text, maxWidth);
+        doc.text(lines[0], margin + (i * colWidth), yPos);
+      });
+
+      yPos += 6;
+    });
+
+    // Save the PDF
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const filename = `llm-cost-calculator-${timestamp}.pdf`;
+    doc.save(filename);
   }
 };
 

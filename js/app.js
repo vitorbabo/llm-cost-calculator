@@ -196,6 +196,15 @@ const App = {
       this.reset();
     });
 
+    // Export buttons
+    document.getElementById('export-csv-btn')?.addEventListener('click', () => {
+      this.exportToCSV();
+    });
+
+    document.getElementById('export-pdf-btn')?.addEventListener('click', () => {
+      this.exportToPDF();
+    });
+
     // Shared input tokens
     const sharedInputTokens = document.getElementById('shared-input-tokens');
     const sharedInputSlider = document.getElementById('shared-input-slider');
@@ -501,6 +510,9 @@ const App = {
 
     // Calculate comparisons
     const results = Calculator.compareModels(comparisons);
+
+    // Store results for export
+    this.currentResults = results;
 
     // Update unified view
     this.updateCostView(results);
@@ -1177,6 +1189,9 @@ const App = {
    * Clear results
    */
   clearResults() {
+    // Clear stored results
+    this.currentResults = null;
+
     // Clear cost view
     const totalCostEl = document.getElementById('total-cost');
     const costPer1kEl = document.getElementById('cost-per-1k');
@@ -1270,6 +1285,56 @@ const App = {
       const isDark = html.classList.toggle('dark');
       localStorage.setItem('theme', isDark ? 'dark' : 'light');
     });
+  },
+
+  /**
+   * Export results to CSV
+   */
+  exportToCSV() {
+    if (!this.currentResults || this.currentResults.length === 0) {
+      alert('No results to export. Please select at least one model and run calculations.');
+      return;
+    }
+
+    // Convert to tokens for export
+    const inputTokens = Utils.toTokens(this.sharedConfig.inputTokens, this.globalInputUnit);
+    const outputTokens = Utils.toTokens(this.sharedConfig.outputTokens, this.globalOutputUnit);
+
+    const config = {
+      inputTokens,
+      outputTokens,
+      rpm: this.sharedConfig.rpm,
+      calcMode: this.sharedConfig.calcMode,
+      duration: this.sharedConfig.duration,
+      totalRequests: this.sharedConfig.totalRequests
+    };
+
+    Utils.exportToCSV(this.currentResults, config);
+  },
+
+  /**
+   * Export results to PDF
+   */
+  exportToPDF() {
+    if (!this.currentResults || this.currentResults.length === 0) {
+      alert('No results to export. Please select at least one model and run calculations.');
+      return;
+    }
+
+    // Convert to tokens for export
+    const inputTokens = Utils.toTokens(this.sharedConfig.inputTokens, this.globalInputUnit);
+    const outputTokens = Utils.toTokens(this.sharedConfig.outputTokens, this.globalOutputUnit);
+
+    const config = {
+      inputTokens,
+      outputTokens,
+      rpm: this.sharedConfig.rpm,
+      calcMode: this.sharedConfig.calcMode,
+      duration: this.sharedConfig.duration,
+      totalRequests: this.sharedConfig.totalRequests
+    };
+
+    Utils.exportToPDF(this.currentResults, config);
   },
 
   /**
