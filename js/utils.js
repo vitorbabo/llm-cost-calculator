@@ -268,20 +268,32 @@ const Utils = {
       const totalCost = result.totalCost;
       const validation = result.validation;
 
+      // Calculate usage percentages
+      const tokensPerRequest = (config.inputTokens || 0) + (config.outputTokens || 0);
+      const contextUsage = model.context_window > 0
+        ? (tokensPerRequest / model.context_window) * 100
+        : 0;
+      const rpmUsage = validation.limits.rpm
+        ? (validation.usage.requestsPerMinute / validation.limits.rpm) * 100
+        : 0;
+      const tpmUsage = validation.limits.tpm
+        ? (validation.usage.tokensPerMinute / validation.limits.tpm) * 100
+        : 0;
+
       const row = [
         model.provider,
         model.model,
-        model.input_price,
-        model.output_price,
+        model.input_price_per_1m,
+        model.output_price_per_1m,
         this.formatNumber(config.inputTokens || 0),
         this.formatNumber(config.outputTokens || 0),
         requestCost.inputCost.toFixed(6),
         requestCost.outputCost.toFixed(6),
         totalCost.totalCost.toFixed(6),
         requestCost.totalCost.toFixed(6),
-        validation.contextUsage.toFixed(2),
-        validation.rpmUsage.toFixed(2),
-        validation.tpmUsage.toFixed(2)
+        contextUsage.toFixed(2),
+        rpmUsage.toFixed(2),
+        tpmUsage.toFixed(2)
       ];
 
       // Escape commas in fields by wrapping in quotes
@@ -430,8 +442,8 @@ const Utils = {
 
       const rowData = [
         `${model.provider} ${model.model}`,
-        `$${model.input_price}/1M`,
-        `$${model.output_price}/1M`,
+        `$${model.input_price_per_1m}/1M`,
+        `$${model.output_price_per_1m}/1M`,
         this.formatCurrency(totalCost.totalCost)
       ];
 
