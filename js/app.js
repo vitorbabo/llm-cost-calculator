@@ -1074,7 +1074,7 @@ const App = {
                 <span class="font-medium">${result.totalCost.totalOutputTokens.toLocaleString()} tokens × ${Utils.formatCurrency(result.model.output_price_per_1m)}/1M = ${Utils.formatCurrency(result.totalCost.totalOutputCost)}</span>
               </div>
               <div class="flex justify-between pt-2 border-t border-border-light dark:border-border-dark">
-                <span class="text-text-light/70 dark:text-text-dark/70">Price per Call:</span>
+                <span class="text-text-light/70 dark:text-text-dark/70">Cost per Request:</span>
                 <span class="font-medium">${Utils.formatCurrency(result.totalCost.costPerRequest)}</span>
               </div>
               <div class="flex justify-between">
