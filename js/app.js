@@ -340,7 +340,7 @@ const App = {
                   </p>
                 </div>
                 ${isCustom ? `
-                  <div class="flex items-center gap-1" onclick="event.preventDefault(); event.stopPropagation();">
+                  <div class="flex items-center gap-1">
                     <button class="edit-custom-model-btn p-1.5 rounded hover:bg-primary/10 transition-colors"
                             data-provider="${model.provider}"
                             data-model="${model.model}"
@@ -465,9 +465,12 @@ const App = {
     // Edit custom model buttons (delegated)
     document.addEventListener('click', (e) => {
       if (e.target.classList.contains('edit-custom-model-btn') || e.target.closest('.edit-custom-model-btn')) {
+        e.preventDefault();
+        e.stopPropagation();
         const btn = e.target.classList.contains('edit-custom-model-btn') ? e.target : e.target.closest('.edit-custom-model-btn');
         const provider = btn.dataset.provider;
         const modelName = btn.dataset.model;
+        console.log('Edit button clicked:', provider, modelName);
         const model = this.models.find(m => m.provider === provider && m.model === modelName);
         if (model) {
           this.openCustomModelModal(model);
@@ -478,9 +481,12 @@ const App = {
     // Delete custom model buttons (delegated)
     document.addEventListener('click', (e) => {
       if (e.target.classList.contains('delete-custom-model-btn') || e.target.closest('.delete-custom-model-btn')) {
+        e.preventDefault();
+        e.stopPropagation();
         const btn = e.target.classList.contains('delete-custom-model-btn') ? e.target : e.target.closest('.delete-custom-model-btn');
         const provider = btn.dataset.provider;
         const modelName = btn.dataset.model;
+        console.log('Delete button clicked:', provider, modelName);
         const model = this.models.find(m => m.provider === provider && m.model === modelName);
         if (model && confirm(`Are you sure you want to delete the custom model "${model.model}"?`)) {
           this.deleteCustomModel(model);
