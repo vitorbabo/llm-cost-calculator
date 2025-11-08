@@ -495,9 +495,8 @@ const App = {
 
     // Update summary cards
     this.updateCostSummaryCards(cheapest);
-
-    // Update quota health card
-    this.updateQuotaHealthCard(results);
+    this.updateMaxThroughputCard(results);
+    this.updateAvgUtilizationCard(results);
 
     // Update chart (bar for multiple, pie for single)
     if (enabledResults.length === 1) {
@@ -516,7 +515,6 @@ const App = {
   updateCostSummaryCards(cheapest) {
     const totalCostEl = document.getElementById('total-cost');
     const costPer1kEl = document.getElementById('cost-per-1k');
-    const monthlyCostEl = document.getElementById('monthly-cost');
     const timeframeLabelEls = document.querySelectorAll('.timeframe-label');
 
     if (totalCostEl) {
@@ -529,36 +527,6 @@ const App = {
       costPer1kEl.textContent = Utils.formatCurrency(costPer1k);
     }
 
-    // Calculate projected monthly cost
-    if (monthlyCostEl) {
-      let monthlyCost;
-      const currentCost = cheapest.totalCost.totalCost;
-
-      switch (this.currentTimeframe) {
-        case 'minute':
-          monthlyCost = currentCost * 60 * 24 * 30; // min to month
-          break;
-        case 'hour':
-          monthlyCost = currentCost * 24 * 30; // hour to month
-          break;
-        case 'day':
-          monthlyCost = currentCost * 30; // day to month
-          break;
-        case 'month':
-          monthlyCost = currentCost; // already monthly
-          break;
-        case 'total':
-          // For total requests, show monthly based on reasonable assumption
-          // Assume the total requests happen over a month
-          monthlyCost = currentCost;
-          break;
-        default:
-          monthlyCost = 0;
-      }
-
-      monthlyCostEl.textContent = Utils.formatCurrency(monthlyCost);
-    }
-
     timeframeLabelEls.forEach(el => {
       if (cheapest.totalCost.period === 'total') {
         el.textContent = '(total)';
@@ -569,65 +537,140 @@ const App = {
   },
 
   /**
-   * Update quota health card
+   * Update max throughput card
    */
-  updateQuotaHealthCard(results) {
-    const quotaHealthEl = document.getElementById('quota-health');
-    const quotaHealthDetailEl = document.getElementById('quota-health-detail');
+  updateMaxThroughputCard(results) {
+    const maxThroughputEl = document.getElementById('max-throughput');
+    const maxThroughputDetailEl = document.getElementById('max-throughput-detail');
 
-    if (!quotaHealthEl || !quotaHealthDetailEl) return;
+    if (!maxThroughputEl || !maxThroughputDetailEl) return;
 
     const enabledResults = results.filter(r => r.enabled);
     if (enabledResults.length === 0) {
-      quotaHealthEl.textContent = '-';
-      quotaHealthDetailEl.textContent = 'No models selected';
+      maxThroughputEl.textContent = '-';
+      maxThroughputDetailEl.textContent = 'No models selected';
       return;
     }
 
-    // Count quota issues
-    let errorCount = 0;
-    let warningCount = 0;
-    let okCount = 0;
+    // Find model with highest throughput (prioritize TPM over RPM)
+    let maxThroughputModel = null;
+    let maxTpm = 0;
+    let maxRpm = 0;
 
     enabledResults.forEach(result => {
-      const hasErrors = result.validation.warnings.some(w => w.severity === 'error');
-      const hasWarnings = result.validation.warnings.some(w => w.severity === 'warning');
-
-      if (hasErrors) {
-        errorCount++;
-      } else if (hasWarnings) {
-        warningCount++;
-      } else {
-        okCount++;
+      const model = result.model;
+      if (model.tpm_limit && model.tpm_limit > maxTpm) {
+        maxTpm = model.tpm_limit;
+        maxThroughputModel = model;
+      } else if (!model.tpm_limit && model.rpm_limit && model.rpm_limit > maxRpm) {
+        maxRpm = model.rpm_limit;
+        if (!maxThroughputModel || !maxThroughputModel.tpm_limit) {
+          maxThroughputModel = model;
+        }
       }
     });
 
-    // Determine overall health status
-    let healthIcon = '';
-    let healthColor = '';
-    let healthText = '';
-    let detailText = '';
-
-    if (errorCount > 0) {
-      healthIcon = 'error';
-      healthColor = 'text-red-600 dark:text-red-400';
-      healthText = `${errorCount} Error${errorCount > 1 ? 's' : ''}`;
-      detailText = `${errorCount} model${errorCount > 1 ? 's' : ''} exceed${errorCount === 1 ? 's' : ''} limits`;
-    } else if (warningCount > 0) {
-      healthIcon = 'warning';
-      healthColor = 'text-yellow-600 dark:text-yellow-400';
-      healthText = `${warningCount} Warning${warningCount > 1 ? 's' : ''}`;
-      detailText = `${warningCount} model${warningCount > 1 ? 's' : ''} near limits`;
+    if (maxThroughputModel) {
+      if (maxTpm > 0) {
+        maxThroughputEl.textContent = Utils.formatNumber(maxTpm) + ' TPM';
+        maxThroughputDetailEl.textContent = maxThroughputModel.model;
+      } else if (maxRpm > 0) {
+        maxThroughputEl.textContent = Utils.formatNumber(maxRpm) + ' RPM';
+        maxThroughputDetailEl.textContent = maxThroughputModel.model;
+      } else {
+        maxThroughputEl.textContent = 'N/A';
+        maxThroughputDetailEl.textContent = 'No limits available';
+      }
     } else {
-      healthIcon = 'check_circle';
-      healthColor = 'text-green-600 dark:text-green-400';
-      healthText = 'All OK';
-      detailText = `All ${okCount} model${okCount > 1 ? 's' : ''} within limits`;
+      maxThroughputEl.textContent = 'N/A';
+      maxThroughputDetailEl.textContent = 'No limits available';
+    }
+  },
+
+  /**
+   * Update average utilization card
+   */
+  updateAvgUtilizationCard(results) {
+    const avgUtilizationEl = document.getElementById('avg-utilization');
+    const avgUtilizationDetailEl = document.getElementById('avg-utilization-detail');
+
+    if (!avgUtilizationEl || !avgUtilizationDetailEl) return;
+
+    const enabledResults = results.filter(r => r.enabled);
+    if (enabledResults.length === 0) {
+      avgUtilizationEl.textContent = '-';
+      avgUtilizationDetailEl.textContent = 'No models selected';
+      return;
     }
 
-    quotaHealthEl.innerHTML = `<span class="material-symbols-outlined ${healthColor}" style="vertical-align: middle; font-size: 28px;">${healthIcon}</span> <span class="${healthColor}">${healthText}</span>`;
-    quotaHealthEl.className = `text-2xl font-bold`;
-    quotaHealthDetailEl.textContent = detailText;
+    // Convert requests to per-minute based on timeframe
+    let requestsPerMinute = this.sharedConfig.requests;
+    switch (this.currentTimeframe) {
+      case 'hour': requestsPerMinute = this.sharedConfig.requests / 60; break;
+      case 'day': requestsPerMinute = this.sharedConfig.requests / (60 * 24); break;
+      case 'month': requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30); break;
+      case 'total': requestsPerMinute = this.sharedConfig.requests / 60; break;
+    }
+
+    // Calculate average utilization across all models
+    let totalUtilization = 0;
+    let modelsWithLimits = 0;
+    let okCount = 0;
+    let warningCount = 0;
+    let errorCount = 0;
+
+    enabledResults.forEach(result => {
+      const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
+      const tokensPerMinute = totalTokens * requestsPerMinute;
+
+      const contextUsage = result.model.context_window ? (totalTokens / result.model.context_window * 100) : 0;
+      const rpmUsage = result.model.rpm_limit ? (requestsPerMinute / result.model.rpm_limit * 100) : 0;
+      const tpmUsage = result.model.tpm_limit ? (tokensPerMinute / result.model.tpm_limit * 100) : 0;
+
+      const maxUsage = Math.max(contextUsage, rpmUsage, tpmUsage);
+
+      if (maxUsage > 0) {
+        totalUtilization += maxUsage;
+        modelsWithLimits++;
+
+        if (maxUsage > 100) {
+          errorCount++;
+        } else if (maxUsage > 80) {
+          warningCount++;
+        } else {
+          okCount++;
+        }
+      }
+    });
+
+    const avgUtilization = modelsWithLimits > 0 ? totalUtilization / modelsWithLimits : 0;
+
+    // Determine color based on average utilization
+    let utilizationColor = '';
+    if (avgUtilization > 100) {
+      utilizationColor = 'text-red-600 dark:text-red-400';
+    } else if (avgUtilization > 80) {
+      utilizationColor = 'text-yellow-600 dark:text-yellow-400';
+    } else {
+      utilizationColor = 'text-green-600 dark:text-green-400';
+    }
+
+    avgUtilizationEl.textContent = avgUtilization > 0 ? `${avgUtilization.toFixed(1)}%` : 'N/A';
+    avgUtilizationEl.className = `text-2xl font-bold ${utilizationColor}`;
+
+    // Create detail text
+    let detailText = '';
+    if (errorCount > 0) {
+      detailText = `${errorCount} model${errorCount > 1 ? 's' : ''} over limit`;
+    } else if (warningCount > 0) {
+      detailText = `${warningCount} model${warningCount > 1 ? 's' : ''} near limit`;
+    } else if (okCount > 0) {
+      detailText = `${okCount} model${okCount > 1 ? 's' : ''} within limits`;
+    } else {
+      detailText = 'No quota data available';
+    }
+
+    avgUtilizationDetailEl.textContent = detailText;
   },
 
   /**
@@ -1348,13 +1391,22 @@ const App = {
     // Clear cost view
     const totalCostEl = document.getElementById('total-cost');
     const costPer1kEl = document.getElementById('cost-per-1k');
-    const monthlyCostEl = document.getElementById('monthly-cost');
+    const maxThroughputEl = document.getElementById('max-throughput');
+    const maxThroughputDetailEl = document.getElementById('max-throughput-detail');
+    const avgUtilizationEl = document.getElementById('avg-utilization');
+    const avgUtilizationDetailEl = document.getElementById('avg-utilization-detail');
     const chartContainer = document.getElementById('chart-bars');
     const tbody = document.getElementById('comparison-table-body');
 
     if (totalCostEl) totalCostEl.textContent = '$0.00';
     if (costPer1kEl) costPer1kEl.textContent = '$0.00';
-    if (monthlyCostEl) monthlyCostEl.textContent = '$0.00';
+    if (maxThroughputEl) maxThroughputEl.textContent = '-';
+    if (maxThroughputDetailEl) maxThroughputDetailEl.textContent = 'No models selected';
+    if (avgUtilizationEl) {
+      avgUtilizationEl.textContent = '-';
+      avgUtilizationEl.className = 'text-2xl font-bold';
+    }
+    if (avgUtilizationDetailEl) avgUtilizationDetailEl.textContent = 'No models selected';
     if (chartContainer) chartContainer.innerHTML = '<p class="text-text-light/60 dark:text-text-dark/60 text-sm">Select models to compare</p>';
     if (tbody) {
       tbody.innerHTML = `
