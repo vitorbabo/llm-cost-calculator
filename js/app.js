@@ -157,7 +157,7 @@ const App = {
 
     container.innerHTML = this.selectedModels.map(model => `
       <div class="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/30 rounded-lg">
-        <span class="text-sm font-medium">${model.provider}: ${model.model}</span>
+        <span class="text-sm font-medium">${model.model}</span>
         <button class="remove-model-btn hover:bg-primary/20 rounded-full p-0.5 transition-colors"
                 data-provider="${model.provider}"
                 data-model="${model.model}">
