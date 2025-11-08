@@ -609,24 +609,24 @@ const App = {
     let detailText = '';
 
     if (errorCount > 0) {
-      healthIcon = '⚠️';
+      healthIcon = 'error';
       healthColor = 'text-red-600 dark:text-red-400';
       healthText = `${errorCount} Error${errorCount > 1 ? 's' : ''}`;
       detailText = `${errorCount} model${errorCount > 1 ? 's' : ''} exceed${errorCount === 1 ? 's' : ''} limits`;
     } else if (warningCount > 0) {
-      healthIcon = '⚡';
+      healthIcon = 'warning';
       healthColor = 'text-yellow-600 dark:text-yellow-400';
       healthText = `${warningCount} Warning${warningCount > 1 ? 's' : ''}`;
       detailText = `${warningCount} model${warningCount > 1 ? 's' : ''} near limits`;
     } else {
-      healthIcon = '✓';
+      healthIcon = 'check_circle';
       healthColor = 'text-green-600 dark:text-green-400';
       healthText = 'All OK';
       detailText = `All ${okCount} model${okCount > 1 ? 's' : ''} within limits`;
     }
 
-    quotaHealthEl.innerHTML = `<span class="${healthColor}">${healthIcon} ${healthText}</span>`;
-    quotaHealthEl.className = `text-2xl font-bold ${healthColor}`;
+    quotaHealthEl.innerHTML = `<span class="material-symbols-outlined ${healthColor}" style="vertical-align: middle; font-size: 28px;">${healthIcon}</span> <span class="${healthColor}">${healthText}</span>`;
+    quotaHealthEl.className = `text-2xl font-bold`;
     quotaHealthDetailEl.textContent = detailText;
   },
 
@@ -659,13 +659,13 @@ const App = {
       let quotaColor = '';
 
       if (hasErrors) {
-        quotaIcon = '🔴';
+        quotaIcon = 'error';
         quotaColor = 'text-red-600 dark:text-red-400';
       } else if (hasWarnings) {
-        quotaIcon = '⚠️';
+        quotaIcon = 'warning';
         quotaColor = 'text-yellow-600 dark:text-yellow-400';
       } else {
-        quotaIcon = '✓';
+        quotaIcon = 'check_circle';
         quotaColor = 'text-green-600 dark:text-green-400';
       }
 
@@ -687,7 +687,7 @@ const App = {
 
       return `
         <div class="flex flex-col items-center gap-2 flex-1 h-full justify-end">
-          <span class="text-base ${quotaColor}" title="Quota status">${quotaIcon}</span>
+          <span class="material-symbols-outlined text-lg ${quotaColor}" title="Quota status">${quotaIcon}</span>
           <div class="w-full ${isFirst ? 'bg-primary' : 'bg-primary/30'} rounded-t-md transition-all duration-300 relative"
                style="height: ${heightPercent}%"
                title="${result.model.model}: ${Utils.formatCurrency(result.totalCost.totalCost)} | Quota: ${maxUsage.toFixed(0)}%">
@@ -727,28 +727,28 @@ const App = {
 
         // Simple CSS-based pie chart using conic gradient
         pieContainer.innerHTML = `
-          <div class="flex items-center gap-8">
-            <div class="relative w-48 h-48">
+          <div class="flex flex-col items-center gap-4">
+            <div class="relative w-32 h-32">
               <div class="w-full h-full rounded-full" style="background: conic-gradient(
                 #ffa500 0% ${inputPercent}%,
                 #ffa50050 ${inputPercent}% 100%
               )"></div>
               <div class="absolute inset-0 flex items-center justify-center">
-                <div class="w-32 h-32 rounded-full bg-surface-light dark:bg-surface-dark"></div>
+                <div class="w-20 h-20 rounded-full bg-surface-light dark:bg-surface-dark"></div>
               </div>
             </div>
-            <div class="flex flex-col gap-4">
-              <div class="flex items-center gap-3">
-                <div class="w-4 h-4 rounded-sm bg-primary"></div>
-                <div>
-                  <p class="text-sm font-medium">Input Tokens</p>
+            <div class="flex flex-col gap-2 w-full">
+              <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-sm bg-primary"></div>
+                <div class="flex-1">
+                  <p class="text-xs font-medium">Input Tokens</p>
                   <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatCurrency(inputCost)} (${inputPercent}%)</p>
                 </div>
               </div>
-              <div class="flex items-center gap-3">
-                <div class="w-4 h-4 rounded-sm bg-primary/30"></div>
-                <div>
-                  <p class="text-sm font-medium">Output Tokens</p>
+              <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-sm bg-primary/30"></div>
+                <div class="flex-1">
+                  <p class="text-xs font-medium">Output Tokens</p>
                   <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatCurrency(outputCost)} (${outputPercent}%)</p>
                 </div>
               </div>
@@ -812,11 +812,11 @@ const App = {
       else if (percentage > 80) color = '#f59e0b'; // yellow
 
       return `
-        <div class="flex flex-col items-center gap-2">
+        <div class="flex flex-col items-center gap-1">
           <div class="radial-gauge">
             ${this.createRadialGaugeSVG(percentage, color)}
             <div class="radial-gauge-text">
-              <p class="text-lg font-bold" style="color: ${color}">${percentage.toFixed(0)}%</p>
+              <p class="text-base font-bold" style="color: ${color}">${percentage.toFixed(0)}%</p>
             </div>
           </div>
           <p class="text-xs font-medium text-text-light/70 dark:text-text-dark/70">${gauge.label}</p>
@@ -830,14 +830,14 @@ const App = {
    * Create SVG for radial gauge
    */
   createRadialGaugeSVG(percentage, color) {
-    const radius = 50;
+    const radius = 40;
     const circumference = 2 * Math.PI * radius;
     const offset = circumference - (Math.min(percentage, 100) / 100) * circumference;
 
     return `
-      <svg width="120" height="120" class="radial-gauge-circle">
-        <circle cx="60" cy="60" r="${radius}" stroke-width="10" class="radial-gauge-bg"></circle>
-        <circle cx="60" cy="60" r="${radius}" stroke-width="10"
+      <svg width="100" height="100" class="radial-gauge-circle">
+        <circle cx="50" cy="50" r="${radius}" stroke-width="8" class="radial-gauge-bg"></circle>
+        <circle cx="50" cy="50" r="${radius}" stroke-width="8"
                 class="radial-gauge-progress"
                 stroke="${color}"
                 stroke-dasharray="${circumference}"
@@ -1058,7 +1058,9 @@ const App = {
         <!-- Warnings -->
         ${result.validation.warnings.length > 0 ? `
           <div class="mt-4 pt-4 border-t border-border-light dark:border-border-dark">
-            <h4 class="font-semibold text-sm mb-2 text-red-600 dark:text-red-400">⚠️ Warnings & Errors</h4>
+            <h4 class="font-semibold text-sm mb-2 text-red-600 dark:text-red-400 flex items-center gap-1">
+              <span class="material-symbols-outlined text-base">warning</span> Warnings & Errors
+            </h4>
             <ul class="space-y-1 text-sm">
               ${result.validation.warnings.map(w => `
                 <li class="${w.severity === 'error' ? 'text-red-600 dark:text-red-400' : 'text-yellow-600 dark:text-yellow-400'}">
