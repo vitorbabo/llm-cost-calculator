@@ -230,36 +230,8 @@ const Utils = {
 
     const lines = [];
 
-    // Add header with configuration
-    lines.push('LLM Cost Calculator - Export Results');
-    lines.push('Generated: ' + new Date().toLocaleString());
-    lines.push('');
-
-    // Add configuration section
-    lines.push('Configuration');
-    lines.push(`Average Input Tokens,${config.inputTokens || 0}`);
-    lines.push(`Average Output Tokens,${config.outputTokens || 0}`);
-    lines.push(`Requests Per Minute,${config.rpm || 0}`);
-    lines.push(`Calculation Mode,${config.calcMode || 'duration'}`);
-    if (config.calcMode === 'duration') {
-      lines.push(`Duration,${config.duration || 'day'}`);
-    } else {
-      lines.push(`Total Requests,${config.totalRequests || 0}`);
-    }
-    lines.push('');
-
-    // Add summary section
-    const cheapest = enabledResults[0];
-    lines.push('Summary');
-    lines.push(`Estimated Cost,${this.formatCurrency(cheapest.totalCost.totalCost)}`);
-    const costPer1k = (cheapest.totalCost.totalCost / cheapest.totalCost.totalRequests) * 1000;
-    lines.push(`Cost per 1K Requests,${this.formatCurrency(costPer1k)}`);
-    lines.push(`Total Requests,${this.formatNumber(cheapest.totalCost.totalRequests)}`);
-    lines.push('');
-
-    // Add detailed results table header
-    lines.push('Model Comparison');
-    lines.push('Provider,Model,Input Price ($/1M),Output Price ($/1M),Input Tokens,Output Tokens,Input Cost,Output Cost,Total Cost,Cost per Request,Context Usage %,RPM Usage %,TPM Usage %');
+    // Add header row with all columns
+    lines.push('Provider,Model,Average Input Tokens,Average Output Tokens,RPM,Calc Mode,Duration,Input Price ($/1M),Output Price ($/1M),Input Tokens,Output Tokens,Input Cost,Output Cost,Total Cost,Cost per Request,Total Requests,Context Usage %,RPM Usage %,TPM Usage %');
 
     // Add each model's data
     enabledResults.forEach(result => {
@@ -283,14 +255,20 @@ const Utils = {
       const row = [
         model.provider,
         model.model,
+        config.inputTokens || 0,
+        config.outputTokens || 0,
+        config.rpm || 0,
+        config.calcMode || 'duration',
+        config.calcMode === 'duration' ? (config.duration || 'day') : config.totalRequests || 0,
         model.input_price_per_1m,
         model.output_price_per_1m,
-        this.formatNumber(config.inputTokens || 0),
-        this.formatNumber(config.outputTokens || 0),
+        config.inputTokens || 0,
+        config.outputTokens || 0,
         requestCost.inputCost.toFixed(6),
         requestCost.outputCost.toFixed(6),
         totalCost.totalCost.toFixed(6),
         requestCost.totalCost.toFixed(6),
+        totalCost.totalRequests,
         contextUsage.toFixed(2),
         rpmUsage.toFixed(2),
         tpmUsage.toFixed(2)
