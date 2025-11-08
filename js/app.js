@@ -8,6 +8,7 @@ const App = {
   customModels: [], // Array of user-created custom models
   selectedModels: [], // Array of selected model objects
   config: null, // Application configuration from config.json
+  selectedProvider: 'all', // Track selected provider filter
   sharedConfig: {
     inputTokens: 5000,
     outputTokens: 1500,
@@ -168,11 +169,76 @@ const App = {
 
       // Merge custom models with CSV models
       this.models = [...csvModels, ...this.customModels];
+
+      // Calculate and assign tiers to all models
+      this.calculateModelTiers();
+
       console.log(`Loaded ${csvModels.length} CSV models and ${this.customModels.length} custom models`);
     } catch (error) {
       console.error('Error loading models:', error);
       throw error;
     }
+  },
+
+  /**
+   * Calculate and assign tier badges to models based on pricing
+   */
+  calculateModelTiers() {
+    // Calculate average price for each model (average of input and output price)
+    const modelsWithPrices = this.models
+      .filter(m => m.pricing_type === 'PAYG') // Only tier PAYG models
+      .map(model => ({
+        model,
+        avgPrice: (parseFloat(model.input_price_per_1m) + parseFloat(model.output_price_per_1m)) / 2
+      }))
+      .sort((a, b) => b.avgPrice - a.avgPrice); // Sort descending
+
+    if (modelsWithPrices.length === 0) return;
+
+    // Calculate percentiles
+    const count = modelsWithPrices.length;
+    const p25Index = Math.floor(count * 0.25);
+    const p75Index = Math.floor(count * 0.75);
+
+    // Assign tiers
+    modelsWithPrices.forEach((item, index) => {
+      let tier, tierIcon, tierColor;
+
+      if (index < p25Index) {
+        // Top 25% - High-End
+        tier = 'High-End';
+        tierIcon = 'star';
+        tierColor = 'text-yellow-600 dark:text-yellow-400';
+      } else if (index >= p75Index) {
+        // Bottom 25% - Budget
+        tier = 'Budget';
+        tierIcon = 'savings';
+        tierColor = 'text-green-600 dark:text-green-400';
+      } else {
+        // Middle 50% - Mid-Range
+        tier = 'Mid-Range';
+        tierIcon = 'bolt';
+        tierColor = 'text-blue-600 dark:text-blue-400';
+      }
+
+      item.model.tier = tier;
+      item.model.tierIcon = tierIcon;
+      item.model.tierColor = tierColor;
+    });
+
+    // PTU models get special tier
+    this.models.filter(m => m.pricing_type === 'PTU').forEach(model => {
+      model.tier = 'Specialized';
+      model.tierIcon = 'verified';
+      model.tierColor = 'text-purple-600 dark:text-purple-400';
+    });
+
+    // Custom models without tiers
+    this.models.filter(m => m.isCustom && !m.tier).forEach(model => {
+      model.tier = 'Custom';
+      model.tierIcon = 'build';
+      model.tierColor = 'text-gray-600 dark:text-gray-400';
+    });
   },
 
   /**
@@ -418,10 +484,18 @@ const App = {
     const selector = document.getElementById('model-selector');
     if (!selector) return;
 
+    // Render provider tabs
+    this.renderProviderTabs();
+
     const providers = this.getProviders();
 
-    selector.innerHTML = Object.keys(providers).sort().map(providerName => {
-      const models = providers[providerName];
+    // Filter providers based on selection
+    const filteredProviders = this.selectedProvider === 'all'
+      ? providers
+      : { [this.selectedProvider]: providers[this.selectedProvider] || [] };
+
+    selector.innerHTML = Object.keys(filteredProviders).sort().map(providerName => {
+      const models = filteredProviders[providerName];
       return `
         <div class="provider-group border-b border-border-light dark:border-border-dark last:border-b-0">
           <div class="p-2 bg-background-light/50 dark:bg-background-dark/50 text-xs font-medium text-text-light/70 dark:text-text-dark/70">
@@ -430,6 +504,7 @@ const App = {
           ${models.map(model => {
             const modelId = `${model.provider}-${model.model}`.replace(/[^a-zA-Z0-9-]/g, '-');
             const isCustom = model.isCustom === true;
+            const hasTier = model.tier && !isCustom;
             return `
               <label class="model-option flex items-center gap-3 p-3 hover:bg-background-light dark:hover:bg-background-dark cursor-pointer transition-colors"
                      data-model-id="${modelId}">
@@ -441,6 +516,10 @@ const App = {
                   <div class="flex items-center gap-2">
                     <p class="text-sm font-medium">${model.model}</p>
                     ${isCustom ? '<span class="px-2 py-0.5 text-xs font-medium bg-primary/20 text-primary rounded">Custom</span>' : ''}
+                    ${hasTier ? `<span class="flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded">
+                      <span class="material-symbols-outlined text-xs ${model.tierColor}">${model.tierIcon}</span>
+                      <span class="${model.tierColor}">${model.tier}</span>
+                    </span>` : ''}
                   </div>
                   <p class="text-xs text-text-light/60 dark:text-text-dark/60">
                     ${Utils.formatCurrency(model.input_price_per_1m)} / ${Utils.formatCurrency(model.output_price_per_1m)} per 1M tokens
@@ -468,6 +547,47 @@ const App = {
         </div>
       `;
     }).join('');
+  },
+
+  /**
+   * Render provider filter tabs
+   */
+  renderProviderTabs() {
+    const tabsContainer = document.getElementById('provider-tabs');
+    if (!tabsContainer) return;
+
+    const providers = this.getProviders();
+    const providerNames = Object.keys(providers).sort();
+
+    // Calculate model counts per provider
+    const providerCounts = {};
+    providerNames.forEach(name => {
+      providerCounts[name] = providers[name].length;
+    });
+
+    const totalCount = this.models.length;
+
+    tabsContainer.innerHTML = `
+      <button class="provider-tab px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${this.selectedProvider === 'all' ? 'bg-primary text-white' : 'bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark hover:bg-primary/10'}"
+              data-provider="all">
+        All (${totalCount})
+      </button>
+      ${providerNames.map(name => `
+        <button class="provider-tab px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${this.selectedProvider === name ? 'bg-primary text-white' : 'bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark hover:bg-primary/10'}"
+                data-provider="${name}">
+          ${name} (${providerCounts[name]})
+        </button>
+      `).join('')}
+    `;
+
+    // Add event listeners to provider tabs
+    tabsContainer.querySelectorAll('.provider-tab').forEach(tab => {
+      tab.addEventListener('click', (e) => {
+        const provider = e.currentTarget.dataset.provider;
+        this.selectedProvider = provider;
+        this.renderModelSelector();
+      });
+    });
   },
 
   /**
@@ -1772,6 +1892,9 @@ const App = {
       daysPerMonth: 30,
       selectedPreset: 'custom'
     };
+
+    // Reset provider filter
+    this.selectedProvider = 'all';
 
     // Reset UI inputs
     const sharedInputTokens = document.getElementById('shared-input-tokens');

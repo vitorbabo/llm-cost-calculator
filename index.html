@@ -315,39 +315,6 @@
           </div>
         </div>
 
-        <!-- Model Selection Panel -->
-        <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
-          <div class="flex items-center justify-between mb-4">
-            <div class="flex items-center gap-2">
-              <span class="material-symbols-outlined text-primary">compare_arrows</span>
-              <h3 class="font-bold text-lg">Model Selection</h3>
-            </div>
-            <button id="add-custom-model-btn" class="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors" title="Add custom model with your own pricing">
-              <span class="material-symbols-outlined text-sm">add</span>
-              <span>Custom Model</span>
-            </button>
-          </div>
-          <p class="text-xs text-text-light/60 dark:text-text-dark/60 mb-4">Select multiple models to compare (you can choose multiple models from the same provider)</p>
-
-          <!-- Model Search/Filter -->
-          <div class="mb-4">
-            <div class="relative">
-              <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-light/40 dark:text-text-dark/40 text-lg">search</span>
-              <input type="text" id="model-search" placeholder="Search models..." class="w-full pl-10 pr-3 py-2 text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
-            </div>
-          </div>
-
-          <!-- Selected Models Display -->
-          <div id="selected-models" class="mb-4 flex flex-wrap gap-2 min-h-[2.5rem] p-2 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark">
-            <p class="text-xs text-text-light/60 dark:text-text-dark/60 m-auto">No models selected</p>
-          </div>
-
-          <!-- Model Selection Dropdown/List -->
-          <div id="model-selector" class="max-h-80 overflow-y-auto border border-border-light dark:border-border-dark rounded-lg bg-background-light dark:bg-background-dark">
-            <!-- Models will be populated here grouped by provider -->
-          </div>
-        </div>
-
         <!-- Action Buttons -->
         <div class="flex gap-4">
           <button id="reset-btn" class="w-full bg-border-light dark:bg-border-dark hover:bg-border-light/70 dark:hover:bg-border-dark/70 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors">
@@ -383,6 +350,44 @@
               <h3 class="font-medium text-sm text-text-light/70 dark:text-text-dark/70 mb-1">Avg Utilization</h3>
               <p id="avg-utilization" class="text-2xl font-bold">-</p>
               <p id="avg-utilization-detail" class="text-xs text-text-light/60 dark:text-text-dark/60 mt-2">No models selected</p>
+            </div>
+          </div>
+
+          <!-- Model Selection Panel -->
+          <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark mb-8">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">compare_arrows</span>
+                <h3 class="font-bold text-lg">Model Selection</h3>
+              </div>
+              <button id="add-custom-model-btn" class="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors" title="Add custom model with your own pricing">
+                <span class="material-symbols-outlined text-sm">add</span>
+                <span>Custom Model</span>
+              </button>
+            </div>
+            <p class="text-xs text-text-light/60 dark:text-text-dark/60 mb-4">Select multiple models to compare (you can choose multiple models from the same provider)</p>
+
+            <!-- Provider Tabs -->
+            <div class="mb-4 flex flex-wrap gap-2 pb-2 border-b border-border-light dark:border-border-dark" id="provider-tabs">
+              <!-- Tabs will be populated dynamically -->
+            </div>
+
+            <!-- Model Search/Filter -->
+            <div class="mb-4">
+              <div class="relative">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-light/40 dark:text-text-dark/40 text-lg">search</span>
+                <input type="text" id="model-search" placeholder="Search models..." class="w-full pl-10 pr-3 py-2 text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
+              </div>
+            </div>
+
+            <!-- Selected Models Display -->
+            <div id="selected-models" class="mb-4 flex flex-wrap gap-2 min-h-[2.5rem] p-2 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark">
+              <p class="text-xs text-text-light/60 dark:text-text-dark/60 m-auto">No models selected</p>
+            </div>
+
+            <!-- Model Selection Dropdown/List -->
+            <div id="model-selector" class="max-h-96 overflow-y-auto border border-border-light dark:border-border-dark rounded-lg bg-background-light dark:bg-background-dark">
+              <!-- Models will be populated here grouped by provider -->
             </div>
           </div>
 
