@@ -187,15 +187,6 @@ const App = {
    * Setup event listeners
    */
   setupEventListeners() {
-    // Tab switching
-    document.getElementById('tab-cost')?.addEventListener('click', () => {
-      this.switchTab('cost');
-    });
-
-    document.getElementById('tab-throughput')?.addEventListener('click', () => {
-      this.switchTab('throughput');
-    });
-
     // Reset button
     document.getElementById('reset-btn')?.addEventListener('click', () => {
       this.reset();
@@ -427,32 +418,6 @@ const App = {
   },
 
   /**
-   * Switch between tabs
-   */
-  switchTab(tabName) {
-    // Update tab buttons
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.classList.remove('active', 'border-primary');
-      btn.classList.add('border-transparent', 'text-text-light/60', 'dark:text-text-dark/60');
-    });
-
-    // Update tab content
-    document.querySelectorAll('.tab-content').forEach(content => {
-      content.classList.add('hidden');
-    });
-
-    if (tabName === 'cost') {
-      document.getElementById('tab-cost')?.classList.add('active', 'border-primary');
-      document.getElementById('tab-cost')?.classList.remove('border-transparent', 'text-text-light/60', 'dark:text-text-dark/60');
-      document.getElementById('cost-view')?.classList.remove('hidden');
-    } else if (tabName === 'throughput') {
-      document.getElementById('tab-throughput')?.classList.add('active', 'border-primary');
-      document.getElementById('tab-throughput')?.classList.remove('border-transparent', 'text-text-light/60', 'dark:text-text-dark/60');
-      document.getElementById('throughput-view')?.classList.remove('hidden');
-    }
-  },
-
-  /**
    * Calculate and display results
    */
   calculate() {
@@ -478,9 +443,8 @@ const App = {
     // Calculate comparisons
     const results = Calculator.compareModels(comparisons);
 
-    // Update both views
+    // Update unified view
     this.updateCostView(results);
-    this.updateThroughputView(results);
   },
 
   /**
@@ -1153,238 +1117,6 @@ const App = {
   },
 
   /**
-   * Update throughput view with all throughput-related information
-   */
-  updateThroughputView(results) {
-    const enabledResults = results.filter(r => r.enabled);
-    if (enabledResults.length === 0) {
-      this.clearThroughputView();
-      return;
-    }
-
-    // Update summary cards
-    this.updateThroughputSummaryCards(enabledResults);
-
-    // Update throughput table
-    this.updateThroughputTable(results);
-  },
-
-  /**
-   * Update throughput summary cards
-   */
-  updateThroughputSummaryCards(enabledResults) {
-    const maxRpmEl = document.getElementById('max-rpm');
-    const maxTpmEl = document.getElementById('max-tpm');
-    const currentUtilEl = document.getElementById('current-util');
-
-    // Convert requests to per-minute based on timeframe
-    let requestsPerMinute = this.sharedConfig.requests;
-
-    switch (this.currentTimeframe) {
-      case 'hour':
-        requestsPerMinute = this.sharedConfig.requests / 60;
-        break;
-      case 'day':
-        requestsPerMinute = this.sharedConfig.requests / (60 * 24);
-        break;
-      case 'month':
-        requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30);
-        break;
-      case 'total':
-        // For total requests, assume they happen over a reasonable period (e.g., 1 hour)
-        requestsPerMinute = this.sharedConfig.requests / 60;
-        break;
-      case 'minute':
-      default:
-        requestsPerMinute = this.sharedConfig.requests;
-    }
-
-    // Find max RPM and TPM across all models
-    let maxRpm = 0;
-    let maxTpm = 0;
-    let totalUtilization = 0;
-
-    enabledResults.forEach(result => {
-      const model = result.model;
-      if (model.rpm_limit && model.rpm_limit > maxRpm) {
-        maxRpm = model.rpm_limit;
-      }
-      if (model.tpm_limit && model.tpm_limit > maxTpm) {
-        maxTpm = model.tpm_limit;
-      }
-
-      // Calculate utilization for this model
-      const rpmUtil = model.rpm_limit ? (requestsPerMinute / model.rpm_limit * 100) : 0;
-      const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
-      const tokensPerMinute = totalTokens * requestsPerMinute;
-      const tpmUtil = model.tpm_limit ? (tokensPerMinute / model.tpm_limit * 100) : 0;
-      const modelUtil = Math.max(rpmUtil, tpmUtil);
-      totalUtilization += modelUtil;
-    });
-
-    const avgUtilization = enabledResults.length > 0 ? totalUtilization / enabledResults.length : 0;
-
-    if (maxRpmEl) {
-      maxRpmEl.textContent = maxRpm > 0 ? Utils.formatNumber(maxRpm) : 'N/A';
-    }
-
-    if (maxTpmEl) {
-      maxTpmEl.textContent = maxTpm > 0 ? Utils.formatNumber(maxTpm) : 'N/A';
-    }
-
-    if (currentUtilEl) {
-      currentUtilEl.textContent = avgUtilization > 0 ? `${avgUtilization.toFixed(1)}%` : 'N/A';
-    }
-  },
-
-  /**
-   * Update throughput comparison table
-   */
-  updateThroughputTable(results) {
-    const tbody = document.getElementById('throughput-table-body');
-    if (!tbody) return;
-
-    tbody.innerHTML = results.map(result => {
-      const model = result.model;
-      const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
-
-      // Convert requests to per-minute based on timeframe
-      let requestsPerMinute = this.sharedConfig.requests;
-
-      switch (this.currentTimeframe) {
-        case 'hour':
-          requestsPerMinute = this.sharedConfig.requests / 60;
-          break;
-        case 'day':
-          requestsPerMinute = this.sharedConfig.requests / (60 * 24);
-          break;
-        case 'month':
-          requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30);
-          break;
-        case 'total':
-          // For total requests, we can't determine per-minute rate
-          // Assume they happen over a reasonable period (e.g., 1 hour)
-          requestsPerMinute = this.sharedConfig.requests / 60;
-          break;
-        case 'minute':
-        default:
-          requestsPerMinute = this.sharedConfig.requests;
-      }
-
-      // Calculate Context Window usage
-      const contextUsage = model.context_window ? (totalTokens / model.context_window * 100) : 0;
-      const contextUsageStr = `${contextUsage.toFixed(1)}%`;
-
-      // Calculate RPM usage
-      const rpmUsage = model.rpm_limit ? (requestsPerMinute / model.rpm_limit * 100) : 0;
-      const rpmUsageStr = model.rpm_limit ? `${rpmUsage.toFixed(1)}%` : 'N/A';
-
-      // Calculate TPM usage
-      const tokensPerMinute = totalTokens * requestsPerMinute;
-      const tpmUsage = model.tpm_limit ? (tokensPerMinute / model.tpm_limit * 100) : 0;
-      const tpmUsageStr = model.tpm_limit ? `${tpmUsage.toFixed(1)}%` : 'N/A';
-
-      // Determine status
-      const hasErrors = result.validation.warnings.some(w => w.severity === 'error');
-      const hasWarnings = result.validation.warnings.some(w => w.severity === 'warning');
-
-      let statusIcon = '';
-      let statusText = '';
-      let statusColor = '';
-
-      if (hasErrors) {
-        statusIcon = 'error';
-        statusText = 'Exceeded';
-        statusColor = 'text-red-600 dark:text-red-400';
-      } else if (hasWarnings) {
-        statusIcon = 'warning';
-        statusText = 'Warning';
-        statusColor = 'text-yellow-600 dark:text-yellow-400';
-      } else {
-        statusIcon = 'check_circle';
-        statusText = 'OK';
-        statusColor = 'text-green-600 dark:text-green-400';
-      }
-
-      // Create progress bar for usage
-      const contextBarWidth = Math.min(contextUsage, 100);
-      const rpmBarWidth = Math.min(rpmUsage, 100);
-      const tpmBarWidth = Math.min(tpmUsage, 100);
-
-      let contextBarColor = 'bg-green-500';
-      if (contextUsage > 100) contextBarColor = 'bg-red-500';
-      else if (contextUsage > 80) contextBarColor = 'bg-yellow-500';
-
-      let rpmBarColor = 'bg-green-500';
-      if (rpmUsage > 100) rpmBarColor = 'bg-red-500';
-      else if (rpmUsage > 80) rpmBarColor = 'bg-yellow-500';
-
-      let tpmBarColor = 'bg-green-500';
-      if (tpmUsage > 100) tpmBarColor = 'bg-red-500';
-      else if (tpmUsage > 80) tpmBarColor = 'bg-yellow-500';
-
-      return `
-        <tr class="border-b border-border-light dark:border-border-dark">
-          <th class="px-6 py-4 font-medium whitespace-nowrap" scope="row">
-            <span class="model-tooltip" data-provider="${model.provider}">${model.model}</span>
-          </th>
-          <td class="px-6 py-4">${Utils.formatNumber(model.context_window)}</td>
-          <td class="px-6 py-4">${model.rpm_limit ? Utils.formatNumber(model.rpm_limit) : 'N/A'}</td>
-          <td class="px-6 py-4">${model.tpm_limit ? Utils.formatNumber(model.tpm_limit) : 'N/A'}</td>
-          <td class="px-6 py-4">
-            <div class="flex items-center gap-2">
-              <div class="flex-1 h-2 bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
-                <div class="${contextBarColor} h-full transition-all duration-300" style="width: ${contextBarWidth}%"></div>
-              </div>
-              <span class="text-xs w-12 text-right">${contextUsageStr}</span>
-            </div>
-          </td>
-          <td class="px-6 py-4">
-            <div class="flex items-center gap-2">
-              <div class="flex-1 h-2 bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
-                <div class="${rpmBarColor} h-full transition-all duration-300" style="width: ${rpmBarWidth}%"></div>
-              </div>
-              <span class="text-xs w-12 text-right">${rpmUsageStr}</span>
-            </div>
-          </td>
-          <td class="px-6 py-4">
-            <div class="flex items-center gap-2">
-              <div class="flex-1 h-2 bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
-                <div class="${tpmBarColor} h-full transition-all duration-300" style="width: ${tpmBarWidth}%"></div>
-              </div>
-              <span class="text-xs w-12 text-right">${tpmUsageStr}</span>
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join('');
-  },
-
-  /**
-   * Clear throughput view
-   */
-  clearThroughputView() {
-    const maxRpmEl = document.getElementById('max-rpm');
-    const maxTpmEl = document.getElementById('max-tpm');
-    const currentUtilEl = document.getElementById('current-util');
-    const tbody = document.getElementById('throughput-table-body');
-
-    if (maxRpmEl) maxRpmEl.textContent = '-';
-    if (maxTpmEl) maxTpmEl.textContent = '-';
-    if (currentUtilEl) currentUtilEl.textContent = '-';
-
-    if (tbody) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="8" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
-            Select models to see throughput analysis
-          </td>
-        </tr>
-      `;
-    }
-  },
-
-  /**
    * Clear results
    */
   clearResults() {
@@ -1421,9 +1153,6 @@ const App = {
     // Show multi-model chart container by default
     document.getElementById('multi-model-chart')?.classList.remove('hidden');
     document.getElementById('single-model-chart')?.classList.add('hidden');
-
-    // Clear throughput view
-    this.clearThroughputView();
   },
 
   /**
