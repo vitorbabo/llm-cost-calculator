@@ -1,0 +1,29 @@
+{
+  "branding": {
+    "title": "LLM Cost Calculator",
+    "logo": {
+      "enabled": false,
+      "url": "",
+      "alt": "Logo",
+      "comment": "Set enabled to true and provide a URL to display a custom logo in the header"
+    }
+  },
+  "apiKeyButton": {
+    "enabled": false,
+    "text": "Get API Key",
+    "url": "https://platform.openai.com/api-keys",
+    "providers": {
+      "OpenAI": "https://platform.openai.com/api-keys",
+      "Anthropic": "https://console.anthropic.com/settings/keys",
+      "Google": "https://makersuite.google.com/app/apikey",
+      "Cohere": "https://dashboard.cohere.com/api-keys",
+      "Mistral": "https://console.mistral.ai/api-keys/",
+      "comment": "Add provider-specific API key URLs here"
+    },
+    "comment": "Set enabled to true to show an API key button in the header"
+  },
+  "theme": {
+    "primaryColor": "#ffa500",
+    "comment": "Customize the primary color theme (currently orange)"
+  }
+}

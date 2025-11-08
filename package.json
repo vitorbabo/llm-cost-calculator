@@ -1,0 +1,33 @@
+{
+  "name": "llm-cost-calculator",
+  "version": "1.0.0",
+  "description": "A comprehensive web-based calculator for estimating and comparing costs across different Large Language Model (LLM) providers and models",
+  "main": "index.html",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "start:node": "npx http-server -p 8000 -c-1",
+    "dev": "python3 -m http.server 8000"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vitorbabo/llm-cost-calculator.git"
+  },
+  "keywords": [
+    "llm",
+    "ai",
+    "pricing",
+    "calculator",
+    "openai",
+    "anthropic",
+    "claude",
+    "gpt",
+    "cost-estimation",
+    "token-calculator"
+  ],
+  "author": "LLM Cost Calculator Contributors",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/vitorbabo/llm-cost-calculator/issues"
+  },
+  "homepage": "https://github.com/vitorbabo/llm-cost-calculator#readme"
+}

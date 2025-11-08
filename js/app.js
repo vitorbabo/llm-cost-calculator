@@ -7,6 +7,7 @@ const App = {
   models: [],
   customModels: [], // Array of user-created custom models
   selectedModels: [], // Array of selected model objects
+  config: null, // Application configuration from config.json
   sharedConfig: {
     inputTokens: 5000,
     outputTokens: 1500,
@@ -25,6 +26,12 @@ const App = {
     console.log('Initializing LLM Cost Calculator...');
 
     try {
+      // Load configuration
+      await this.loadConfig();
+
+      // Apply configuration to UI
+      this.applyConfig();
+
       // Load models from CSV
       await this.loadModels();
 
@@ -45,6 +52,102 @@ const App = {
       console.error('Failed to initialize app:', error);
       this.showError('Failed to load models data');
     }
+  },
+
+  /**
+   * Load configuration from config.json
+   */
+  async loadConfig() {
+    try {
+      const response = await fetch('config.json');
+      if (response.ok) {
+        this.config = await response.json();
+        console.log('Configuration loaded:', this.config);
+      } else {
+        console.log('No config.json found, using defaults');
+        this.config = this.getDefaultConfig();
+      }
+    } catch (error) {
+      console.log('Error loading config.json, using defaults:', error);
+      this.config = this.getDefaultConfig();
+    }
+  },
+
+  /**
+   * Get default configuration
+   */
+  getDefaultConfig() {
+    return {
+      branding: {
+        title: 'LLM Cost Calculator',
+        logo: {
+          enabled: false,
+          url: '',
+          alt: 'Logo'
+        }
+      },
+      apiKeyButton: {
+        enabled: false,
+        text: 'Get API Key',
+        url: 'https://platform.openai.com/api-keys',
+        providers: {}
+      },
+      theme: {
+        primaryColor: '#ffa500'
+      }
+    };
+  },
+
+  /**
+   * Apply configuration to UI
+   */
+  applyConfig() {
+    if (!this.config) return;
+
+    // Apply branding
+    if (this.config.branding) {
+      // Set title
+      if (this.config.branding.title) {
+        const titleElement = document.getElementById('app-title');
+        if (titleElement) {
+          titleElement.textContent = this.config.branding.title;
+        }
+        document.title = this.config.branding.title;
+      }
+
+      // Set logo
+      if (this.config.branding.logo && this.config.branding.logo.enabled) {
+        const logoElement = document.getElementById('custom-logo');
+        const defaultIcon = document.getElementById('default-icon');
+
+        if (logoElement && this.config.branding.logo.url) {
+          logoElement.src = this.config.branding.logo.url;
+          logoElement.alt = this.config.branding.logo.alt || 'Logo';
+          logoElement.classList.remove('hidden');
+          if (defaultIcon) {
+            defaultIcon.classList.add('hidden');
+          }
+        }
+      }
+    }
+
+    // Apply API key button configuration
+    if (this.config.apiKeyButton && this.config.apiKeyButton.enabled) {
+      const apiKeyButton = document.getElementById('api-key-button');
+      const apiKeyButtonText = document.getElementById('api-key-button-text');
+
+      if (apiKeyButton) {
+        apiKeyButton.href = this.config.apiKeyButton.url || '#';
+        apiKeyButton.classList.remove('hidden');
+        apiKeyButton.classList.add('flex');
+
+        if (apiKeyButtonText && this.config.apiKeyButton.text) {
+          apiKeyButtonText.textContent = this.config.apiKeyButton.text;
+        }
+      }
+    }
+
+    console.log('Configuration applied to UI');
   },
 
   /**
@@ -1530,16 +1633,47 @@ const App = {
     this.sharedConfig = {
       inputTokens: 5000,
       outputTokens: 1500,
-      requests: 100
+      rpm: 20,
+      calcMode: 'duration',
+      duration: 'day',
+      totalRequests: 100
     };
 
     // Reset UI inputs
-    document.getElementById('shared-input-tokens').value = 5000;
-    document.getElementById('shared-input-slider').value = 5000;
-    document.getElementById('shared-output-tokens').value = 1500;
-    document.getElementById('shared-output-slider').value = 1500;
-    document.getElementById('shared-requests').value = 100;
-    document.getElementById('shared-requests-slider').value = 100;
+    const sharedInputTokens = document.getElementById('shared-input-tokens');
+    const sharedInputSlider = document.getElementById('shared-input-slider');
+    const sharedOutputTokens = document.getElementById('shared-output-tokens');
+    const sharedOutputSlider = document.getElementById('shared-output-slider');
+    const sharedRpm = document.getElementById('shared-rpm');
+    const sharedRpmSlider = document.getElementById('shared-rpm-slider');
+    const calcModeDuration = document.getElementById('calc-mode-duration');
+    const durationSelect = document.getElementById('duration-select');
+    const totalRequestsInput = document.getElementById('total-requests-input');
+
+    if (sharedInputTokens) sharedInputTokens.value = 5000;
+    if (sharedInputSlider) sharedInputSlider.value = 5000;
+    if (sharedOutputTokens) sharedOutputTokens.value = 1500;
+    if (sharedOutputSlider) sharedOutputSlider.value = 1500;
+    if (sharedRpm) sharedRpm.value = 20;
+    if (sharedRpmSlider) sharedRpmSlider.value = 20;
+    if (calcModeDuration) calcModeDuration.checked = true;
+    if (durationSelect) durationSelect.value = 'day';
+    if (totalRequestsInput) {
+      totalRequestsInput.value = 100;
+      totalRequestsInput.disabled = true;
+    }
+
+    // Reset unit selectors
+    const globalInputUnit = document.getElementById('global-input-unit');
+    const globalOutputUnit = document.getElementById('global-output-unit');
+    if (globalInputUnit) {
+      globalInputUnit.value = 'tokens';
+      this.globalInputUnit = 'tokens';
+    }
+    if (globalOutputUnit) {
+      globalOutputUnit.value = 'tokens';
+      this.globalOutputUnit = 'tokens';
+    }
 
     // Clear model search
     const searchInput = document.getElementById('model-search');
@@ -1556,10 +1690,12 @@ const App = {
     this.clearResults();
 
     // Reinitialize with default model
-    const gpt4o = this.models.find(m => m.provider === 'OpenAI' && m.model === 'GPT-4o');
-    if (gpt4o) {
-      this.addModelToSelection(gpt4o);
+    const gpt5 = this.models.find(m => m.model === 'GPT-5');
+    if (gpt5) {
+      this.addModelToSelection(gpt5);
     }
+
+    console.log('Reset completed');
   },
 
   /**
