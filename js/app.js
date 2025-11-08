@@ -687,9 +687,8 @@ const App = {
       return `
         <tr class="border-b border-border-light dark:border-border-dark">
           <th class="px-6 py-4 font-medium whitespace-nowrap ${opacity}" scope="row">
-            ${result.model.model}
+            <span class="model-tooltip" data-provider="${result.model.provider}">${result.model.model}</span>
           </th>
-          <td class="px-6 py-4 ${opacity}">${result.model.provider}</td>
           <td class="px-6 py-4 ${opacity}">${Utils.formatNumber(result.model.context_window)}</td>
           <td class="px-6 py-4 ${opacity}">
             ${Utils.formatCurrency(result.model.input_price_per_1m)} / ${Utils.formatCurrency(result.model.output_price_per_1m)}
@@ -875,8 +874,9 @@ const App = {
 
       return `
         <tr class="border-b border-border-light dark:border-border-dark">
-          <th class="px-6 py-4 font-medium whitespace-nowrap" scope="row">${model.model}</th>
-          <td class="px-6 py-4">${model.provider}</td>
+          <th class="px-6 py-4 font-medium whitespace-nowrap" scope="row">
+            <span class="model-tooltip" data-provider="${model.provider}">${model.model}</span>
+          </th>
           <td class="px-6 py-4">${model.rpm_limit ? Utils.formatNumber(model.rpm_limit) : 'N/A'}</td>
           <td class="px-6 py-4">${model.tpm_limit ? Utils.formatNumber(model.tpm_limit) : 'N/A'}</td>
           <td class="px-6 py-4">
@@ -922,7 +922,7 @@ const App = {
     if (tbody) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="7" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
+          <td colspan="6" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
             Select models to see throughput analysis
           </td>
         </tr>
@@ -948,7 +948,7 @@ const App = {
     if (tbody) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="7" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
+          <td colspan="6" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
             Select models to see results
           </td>
         </tr>

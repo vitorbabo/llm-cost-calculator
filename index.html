@@ -57,6 +57,40 @@
   .dark .status-error {
     color: #f87171;
   }
+
+  /* Tooltip styles */
+  .model-tooltip {
+    position: relative;
+    cursor: help;
+  }
+
+  .model-tooltip::after {
+    content: attr(data-provider);
+    position: absolute;
+    left: 0;
+    bottom: 100%;
+    margin-bottom: 8px;
+    padding: 6px 12px;
+    background-color: #1f2937;
+    color: #f9fafb;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 6px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease-in-out;
+    z-index: 1000;
+  }
+
+  .model-tooltip:hover::after {
+    opacity: 1;
+  }
+
+  .dark .model-tooltip::after {
+    background-color: #374151;
+    color: #f9fafb;
+  }
 </style>
 <script id="tailwind-config">
   tailwind.config = {
@@ -312,7 +346,6 @@
               <thead class="text-xs uppercase bg-background-light dark:bg-background-dark">
                 <tr>
                   <th class="px-6 py-3" scope="col">Model</th>
-                  <th class="px-6 py-3" scope="col">Provider</th>
                   <th class="px-6 py-3" scope="col">Max Context</th>
                   <th class="px-6 py-3" scope="col">Price (In/Out)</th>
                   <th class="px-6 py-3" scope="col">Tokens (In/Out)</th>
@@ -322,7 +355,7 @@
               </thead>
               <tbody id="comparison-table-body">
                 <tr>
-                  <td colspan="7" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
+                  <td colspan="6" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
                     Select models to see results
                   </td>
                 </tr>
@@ -358,7 +391,6 @@
               <thead class="text-xs uppercase bg-background-light dark:bg-background-dark">
                 <tr>
                   <th class="px-6 py-3" scope="col">Model</th>
-                  <th class="px-6 py-3" scope="col">Provider</th>
                   <th class="px-6 py-3" scope="col">Max RPM</th>
                   <th class="px-6 py-3" scope="col">Max TPM</th>
                   <th class="px-6 py-3" scope="col">RPM Usage</th>
@@ -368,7 +400,7 @@
               </thead>
               <tbody id="throughput-table-body">
                 <tr>
-                  <td colspan="7" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
+                  <td colspan="6" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
                     Select models to see throughput analysis
                   </td>
                 </tr>
