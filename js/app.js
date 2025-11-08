@@ -5,8 +5,13 @@
 
 const App = {
   models: [],
-  comparisons: [],
-  currentTimeframe: 'hour',
+  selectedModels: [], // Array of selected model objects
+  sharedConfig: {
+    inputTokens: 500,
+    outputTokens: 1500,
+    requests: 10
+  },
+  currentTimeframe: 'total',
   globalInputUnit: 'tokens',
   globalOutputUnit: 'tokens',
 
@@ -22,13 +27,15 @@ const App = {
 
       // Setup UI components
       this.setupDarkMode();
-      this.setupProviderAccordions();
-      this.updateUnitLabels(); // Set initial unit labels
+      this.renderModelSelector();
       this.updateRequestsLabels(); // Set initial request labels based on default timeframe
       this.setupEventListeners();
 
-      // Initialize with default comparison
-      this.addComparison('OpenAI', 'GPT-4o');
+      // Initialize with default model selection
+      const gpt4o = this.models.find(m => m.model === 'GPT-4o');
+      if (gpt4o) {
+        this.addModelToSelection(gpt4o);
+      }
 
       console.log('App initialized successfully');
     } catch (error) {
@@ -69,135 +76,124 @@ const App = {
   },
 
   /**
-   * Setup provider accordions dynamically
+   * Render the model selector with grouped models by provider
    */
-  setupProviderAccordions() {
+  renderModelSelector() {
+    const selector = document.getElementById('model-selector');
+    if (!selector) return;
+
     const providers = this.getProviders();
-    const container = document.getElementById('providers-container');
-    container.innerHTML = '';
 
-    Object.keys(providers).sort().forEach((providerName, index) => {
-      const isFirst = index === 0;
-      const accordionHtml = this.createProviderAccordion(providerName, providers[providerName], isFirst);
-      container.insertAdjacentHTML('beforeend', accordionHtml);
-    });
-
-    // Setup accordion change listeners
-    document.querySelectorAll('.provider-accordion').forEach(details => {
-      details.addEventListener('toggle', (e) => {
-        if (details.open) {
-          this.updateComparisonFromUI(details.dataset.provider);
-        }
-      });
-    });
+    selector.innerHTML = Object.keys(providers).sort().map(providerName => {
+      const models = providers[providerName];
+      return `
+        <div class="provider-group border-b border-border-light dark:border-border-dark last:border-b-0">
+          <div class="p-2 bg-background-light/50 dark:bg-background-dark/50 text-xs font-medium text-text-light/70 dark:text-text-dark/70">
+            ${providerName}
+          </div>
+          ${models.map(model => {
+            const modelId = `${model.provider}-${model.model}`.replace(/[^a-zA-Z0-9-]/g, '-');
+            return `
+              <label class="model-option flex items-center gap-3 p-3 hover:bg-background-light dark:hover:bg-background-dark cursor-pointer transition-colors"
+                     data-model-id="${modelId}">
+                <input type="checkbox"
+                       class="model-checkbox w-4 h-4 text-primary bg-surface-light dark:bg-surface-dark border-border-light dark:border-border-dark rounded focus:ring-primary"
+                       data-provider="${model.provider}"
+                       data-model="${model.model}">
+                <div class="flex-1">
+                  <p class="text-sm font-medium">${model.model}</p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">
+                    ${Utils.formatCurrency(model.input_price_per_1m)} / ${Utils.formatCurrency(model.output_price_per_1m)} per 1M tokens
+                  </p>
+                </div>
+              </label>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }).join('');
   },
 
   /**
-   * Create HTML for a provider accordion
+   * Add a model to the selection
    */
-  createProviderAccordion(provider, models, isOpen = false) {
-    const defaultModel = models[0];
-    const id = `provider-${provider.toLowerCase().replace(/\s+/g, '-')}`;
+  addModelToSelection(model) {
+    // Check if model is already selected
+    const exists = this.selectedModels.find(m =>
+      m.provider === model.provider && m.model === model.model
+    );
 
-    return `
-      <details class="provider-accordion flex flex-col rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-4 group"
-               ${isOpen ? 'open' : ''}
-               data-provider="${provider}"
-               id="${id}">
-        <summary class="flex cursor-pointer items-center justify-between py-4">
-          <div class="flex items-center gap-3">
-            <input type="checkbox"
-                   class="provider-enable w-4 h-4 text-primary bg-background-light dark:bg-background-dark border-border-light dark:border-border-dark rounded focus:ring-primary"
-                   ${isOpen ? 'checked' : ''}
-                   data-provider="${provider}"
-                   onclick="event.stopPropagation()">
-            <p class="text-base font-medium">${provider}</p>
-          </div>
-          <span class="material-symbols-outlined transition-transform duration-200 group-open:rotate-180">expand_more</span>
-        </summary>
-        <div class="border-t border-border-light dark:border-border-dark -mx-4">
-          <div class="p-4 flex flex-col gap-6">
-            <!-- Model Selection -->
-            <label class="flex flex-col gap-2">
-              <p class="text-sm font-medium">Model</p>
-              <select class="model-select form-select w-full rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"
-                      data-provider="${provider}">
-                ${models.map(m => `<option value="${m.model}">${m.model}</option>`).join('')}
-              </select>
-            </label>
+    if (exists) return;
 
-            <!-- Input Value -->
-            <div class="@container">
-              <div class="relative flex w-full flex-col items-start justify-between gap-3">
-                <div class="flex w-full items-center justify-between">
-                  <p class="text-sm font-medium">Input <span class="input-unit-label">Tokens</span></p>
-                  <input class="input-value form-input w-24 rounded-md text-sm p-1 text-right bg-background-light dark:bg-background-dark border-border-light dark:border-border-dark"
-                         type="number"
-                         value="4096"
-                         min="0"
-                         data-provider="${provider}"/>
-                </div>
-                <div class="flex h-4 w-full items-center gap-4">
-                  <input class="input-slider w-full h-1.5 bg-border-light dark:bg-border-dark rounded-full appearance-none cursor-pointer accent-primary"
-                         max="${defaultModel.context_window}"
-                         min="0"
-                         type="range"
-                         value="4096"
-                         data-provider="${provider}"/>
-                </div>
-              </div>
-            </div>
+    this.selectedModels.push(model);
+    this.updateSelectedModelsDisplay();
+    this.updateModelSelectorCheckboxes();
+    this.calculate();
+  },
 
-            <!-- Output Value -->
-            <div class="@container">
-              <div class="relative flex w-full flex-col items-start justify-between gap-3">
-                <div class="flex w-full items-center justify-between">
-                  <p class="text-sm font-medium">Output <span class="output-unit-label">Tokens</span></p>
-                  <input class="output-value form-input w-24 rounded-md text-sm p-1 text-right bg-background-light dark:bg-background-dark border-border-light dark:border-border-dark"
-                         type="number"
-                         value="1024"
-                         min="0"
-                         data-provider="${provider}"/>
-                </div>
-                <div class="flex h-4 w-full items-center gap-4">
-                  <input class="output-slider w-full h-1.5 bg-border-light dark:bg-border-dark rounded-full appearance-none cursor-pointer accent-primary"
-                         max="${Math.min(defaultModel.context_window / 2, 16384)}"
-                         min="0"
-                         type="range"
-                         value="1024"
-                         data-provider="${provider}"/>
-                </div>
-              </div>
-            </div>
+  /**
+   * Remove a model from the selection
+   */
+  removeModelFromSelection(provider, modelName) {
+    this.selectedModels = this.selectedModels.filter(m =>
+      !(m.provider === provider && m.model === modelName)
+    );
+    this.updateSelectedModelsDisplay();
+    this.updateModelSelectorCheckboxes();
+    this.calculate();
+  },
 
-            <!-- Requests -->
-            <label class="flex flex-col gap-2">
-              <p class="text-sm font-medium requests-label">Requests per Minute</p>
-              <input class="rpm-input form-input w-full rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"
-                     type="number"
-                     value="60"
-                     min="1"
-                     data-provider="${provider}"/>
-            </label>
+  /**
+   * Update the selected models display area
+   */
+  updateSelectedModelsDisplay() {
+    const container = document.getElementById('selected-models');
+    if (!container) return;
 
-            <!-- Quota Status -->
-            <div class="quota-status hidden p-3 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark">
-              <p class="text-xs font-medium mb-2">Quota Usage</p>
-              <div class="space-y-2 text-xs"></div>
-            </div>
-          </div>
-        </div>
-      </details>
-    `;
+    if (this.selectedModels.length === 0) {
+      container.innerHTML = '<p class="text-xs text-text-light/60 dark:text-text-dark/60 m-auto">No models selected</p>';
+      return;
+    }
+
+    container.innerHTML = this.selectedModels.map(model => `
+      <div class="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/30 rounded-lg">
+        <span class="text-sm font-medium">${model.provider}: ${model.model}</span>
+        <button class="remove-model-btn hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+                data-provider="${model.provider}"
+                data-model="${model.model}">
+          <span class="material-symbols-outlined text-sm">close</span>
+        </button>
+      </div>
+    `).join('');
+  },
+
+  /**
+   * Update checkboxes in model selector based on selected models
+   */
+  updateModelSelectorCheckboxes() {
+    document.querySelectorAll('.model-checkbox').forEach(checkbox => {
+      const provider = checkbox.dataset.provider;
+      const modelName = checkbox.dataset.model;
+
+      const isSelected = this.selectedModels.some(m =>
+        m.provider === provider && m.model === modelName
+      );
+
+      checkbox.checked = isSelected;
+    });
   },
 
   /**
    * Setup event listeners
    */
   setupEventListeners() {
-    // Calculate button
-    document.getElementById('calculate-btn')?.addEventListener('click', () => {
-      this.calculate();
+    // Tab switching
+    document.getElementById('tab-cost')?.addEventListener('click', () => {
+      this.switchTab('cost');
+    });
+
+    document.getElementById('tab-throughput')?.addEventListener('click', () => {
+      this.switchTab('throughput');
     });
 
     // Reset button
@@ -212,82 +208,145 @@ const App = {
       this.calculate();
     });
 
-    // Provider enable checkboxes
+    // Shared input tokens
+    const sharedInputTokens = document.getElementById('shared-input-tokens');
+    const sharedInputSlider = document.getElementById('shared-input-slider');
+
+    sharedInputTokens?.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value) || 1;
+      if (sharedInputSlider) {
+        sharedInputSlider.value = value;
+      }
+      this.sharedConfig.inputTokens = value;
+      this.calculate();
+    });
+
+    sharedInputSlider?.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value) || 1;
+      if (sharedInputTokens) {
+        sharedInputTokens.value = value;
+      }
+      this.sharedConfig.inputTokens = value;
+      this.calculate();
+    });
+
+    // Shared output tokens
+    const sharedOutputTokens = document.getElementById('shared-output-tokens');
+    const sharedOutputSlider = document.getElementById('shared-output-slider');
+
+    sharedOutputTokens?.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value) || 1;
+      if (sharedOutputSlider) {
+        sharedOutputSlider.value = value;
+      }
+      this.sharedConfig.outputTokens = value;
+      this.calculate();
+    });
+
+    sharedOutputSlider?.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value) || 1;
+      if (sharedOutputTokens) {
+        sharedOutputTokens.value = value;
+      }
+      this.sharedConfig.outputTokens = value;
+      this.calculate();
+    });
+
+    // Shared requests
+    const sharedRequests = document.getElementById('shared-requests');
+    const sharedRequestsSlider = document.getElementById('shared-requests-slider');
+
+    sharedRequests?.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value) || 1;
+      if (sharedRequestsSlider) {
+        sharedRequestsSlider.value = value;
+      }
+      this.sharedConfig.requests = value;
+      this.calculate();
+    });
+
+    sharedRequestsSlider?.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value) || 1;
+      if (sharedRequests) {
+        sharedRequests.value = value;
+      }
+      this.sharedConfig.requests = value;
+      this.calculate();
+    });
+
+    // Preset buttons
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('preset-btn') || e.target.closest('.preset-btn')) {
+        const btn = e.target.classList.contains('preset-btn') ? e.target : e.target.closest('.preset-btn');
+        const inputTokens = parseInt(btn.dataset.input);
+        const outputTokens = parseInt(btn.dataset.output);
+        const requests = parseInt(btn.dataset.requests);
+
+        this.sharedConfig.inputTokens = inputTokens;
+        this.sharedConfig.outputTokens = outputTokens;
+        this.sharedConfig.requests = requests;
+
+        // Update UI
+        document.getElementById('shared-input-tokens').value = inputTokens;
+        document.getElementById('shared-input-slider').value = inputTokens;
+        document.getElementById('shared-output-tokens').value = outputTokens;
+        document.getElementById('shared-output-slider').value = outputTokens;
+        document.getElementById('shared-requests').value = requests;
+        document.getElementById('shared-requests-slider').value = requests;
+
+        this.calculate();
+      }
+    });
+
+    // Model checkboxes
     document.addEventListener('change', (e) => {
-      if (e.target.classList.contains('provider-enable')) {
+      if (e.target.classList.contains('model-checkbox')) {
         const provider = e.target.dataset.provider;
-        const details = document.getElementById(`provider-${provider.toLowerCase().replace(/\s+/g, '-')}`);
+        const modelName = e.target.dataset.model;
+        const model = this.models.find(m => m.provider === provider && m.model === modelName);
 
         if (e.target.checked) {
-          details.setAttribute('open', '');
-          this.updateComparisonFromUI(provider);
+          this.addModelToSelection(model);
         } else {
-          this.removeComparison(provider);
+          this.removeModelFromSelection(provider, modelName);
         }
-        this.calculate();
       }
     });
 
-    // Model selection changes
-    document.addEventListener('change', (e) => {
-      if (e.target.classList.contains('model-select')) {
-        this.updateComparisonFromUI(e.target.dataset.provider);
-        this.calculate();
+    // Remove model buttons
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('remove-model-btn') || e.target.closest('.remove-model-btn')) {
+        const btn = e.target.classList.contains('remove-model-btn') ? e.target : e.target.closest('.remove-model-btn');
+        const provider = btn.dataset.provider;
+        const modelName = btn.dataset.model;
+        this.removeModelFromSelection(provider, modelName);
       }
     });
 
-    // Input/Output value changes
-    document.addEventListener('input', (e) => {
-      if (e.target.classList.contains('input-value') || e.target.classList.contains('input-slider')) {
-        const provider = e.target.dataset.provider;
-        const details = document.getElementById(`provider-${provider.toLowerCase().replace(/\s+/g, '-')}`);
-        const value = parseInt(e.target.value) || 0;
+    // Model search
+    document.getElementById('model-search')?.addEventListener('input', (e) => {
+      const searchTerm = e.target.value.toLowerCase();
+      document.querySelectorAll('.model-option').forEach(option => {
+        const text = option.textContent.toLowerCase();
+        option.style.display = text.includes(searchTerm) ? '' : 'none';
+      });
 
-        // Sync slider and input
-        details.querySelector('.input-value').value = value;
-        details.querySelector('.input-slider').value = value;
-
-        this.updateComparisonFromUI(provider);
-        this.calculate();
-      }
-
-      if (e.target.classList.contains('output-value') || e.target.classList.contains('output-slider')) {
-        const provider = e.target.dataset.provider;
-        const details = document.getElementById(`provider-${provider.toLowerCase().replace(/\s+/g, '-')}`);
-        const value = parseInt(e.target.value) || 0;
-
-        // Sync slider and input
-        details.querySelector('.output-value').value = value;
-        details.querySelector('.output-slider').value = value;
-
-        this.updateComparisonFromUI(provider);
-        this.calculate();
-      }
-
-      if (e.target.classList.contains('rpm-input')) {
-        this.updateComparisonFromUI(e.target.dataset.provider);
-        this.calculate();
-      }
+      // Hide provider groups if all models are hidden
+      document.querySelectorAll('.provider-group').forEach(group => {
+        const visibleModels = Array.from(group.querySelectorAll('.model-option'))
+          .filter(opt => opt.style.display !== 'none');
+        group.style.display = visibleModels.length > 0 ? '' : 'none';
+      });
     });
 
     // Global unit selection changes
     document.getElementById('global-input-unit')?.addEventListener('change', (e) => {
       this.globalInputUnit = e.target.value;
-      this.updateUnitLabels();
-      // Recalculate all comparisons with new units
-      document.querySelectorAll('.provider-enable:checked').forEach(checkbox => {
-        this.updateComparisonFromUI(checkbox.dataset.provider);
-      });
       this.calculate();
     });
 
     document.getElementById('global-output-unit')?.addEventListener('change', (e) => {
       this.globalOutputUnit = e.target.value;
-      this.updateUnitLabels();
-      // Recalculate all comparisons with new units
-      document.querySelectorAll('.provider-enable:checked').forEach(checkbox => {
-        this.updateComparisonFromUI(checkbox.dataset.provider);
-      });
       this.calculate();
     });
 
@@ -298,213 +357,203 @@ const App = {
     });
   },
 
-  /**
-   * Update unit labels for all inputs/outputs
-   */
-  updateUnitLabels() {
-    const inputLabel = this.globalInputUnit.charAt(0).toUpperCase() + this.globalInputUnit.slice(1);
-    const outputLabel = this.globalOutputUnit.charAt(0).toUpperCase() + this.globalOutputUnit.slice(1);
-
-    document.querySelectorAll('.input-unit-label').forEach(el => {
-      el.textContent = inputLabel;
-    });
-
-    document.querySelectorAll('.output-unit-label').forEach(el => {
-      el.textContent = outputLabel;
-    });
-  },
 
   /**
-   * Update requests field labels based on timeframe
+   * Update requests field labels and slider range based on timeframe
    */
   updateRequestsLabels() {
-    const labels = document.querySelectorAll('.requests-label');
-    let labelText = 'Requests per Minute';
+    const label = document.getElementById('requests-label');
+    const slider = document.getElementById('shared-requests-slider');
+    const input = document.getElementById('shared-requests');
+
+    if (!label) return;
+
+    let labelText = 'Total Requests';
+    let maxValue = 10000;
+    let step = 10;
+    let suggestedDefault = 1000;
 
     switch (this.currentTimeframe) {
       case 'minute':
         labelText = 'Requests per Minute';
+        maxValue = 1000;
+        step = 1;
+        suggestedDefault = 100;
         break;
       case 'hour':
         labelText = 'Requests per Hour';
+        maxValue = 10000;
+        step = 1;
+        suggestedDefault = 1000;
         break;
       case 'day':
         labelText = 'Requests per Day';
+        maxValue = 100000;
+        step = 1;
+        suggestedDefault = 10000;
         break;
       case 'month':
         labelText = 'Requests per Month';
+        maxValue = 1000;
+        step = 1;
+        suggestedDefault = 100;
         break;
       case 'total':
         labelText = 'Total Requests';
+        maxValue = 99999;
+        step = 100;
+        suggestedDefault = 1000;
         break;
     }
 
-    labels.forEach(label => {
-      label.textContent = labelText;
-    });
-  },
+    label.textContent = labelText;
 
-  /**
-   * Add a comparison
-   */
-  addComparison(provider, modelName = null) {
-    const providerModels = this.models.filter(m => m.provider === provider);
-    const model = modelName
-      ? providerModels.find(m => m.model === modelName)
-      : providerModels[0];
+    // Update slider attributes
+    if (slider) {
+      slider.max = maxValue;
+      slider.step = step;
 
-    if (!model) return;
-
-    // Remove existing comparison for this provider
-    this.comparisons = this.comparisons.filter(c => c.model.provider !== provider);
-
-    // Add new comparison
-    this.comparisons.push({
-      model,
-      inputTokens: 4096,
-      outputTokens: 1024,
-      requestsPerMinute: 60,
-      timeframe: this.currentTimeframe,
-      enabled: true
-    });
-  },
-
-  /**
-   * Remove a comparison
-   */
-  removeComparison(provider) {
-    this.comparisons = this.comparisons.filter(c => c.model.provider !== provider);
-  },
-
-  /**
-   * Update comparison from UI values
-   */
-  updateComparisonFromUI(provider) {
-    const details = document.getElementById(`provider-${provider.toLowerCase().replace(/\s+/g, '-')}`);
-    if (!details) return;
-
-    const modelSelect = details.querySelector('.model-select');
-    const inputValue = parseInt(details.querySelector('.input-value').value) || 0;
-    const outputValue = parseInt(details.querySelector('.output-value').value) || 0;
-    const rpmInput = parseInt(details.querySelector('.rpm-input').value) || 1;
-
-    const model = this.models.find(m =>
-      m.provider === provider && m.model === modelSelect.value
-    );
-
-    if (!model) return;
-
-    // Convert to tokens using global units
-    const inputTokens = Utils.toTokens(inputValue, this.globalInputUnit);
-    const outputTokens = Utils.toTokens(outputValue, this.globalOutputUnit);
-
-    // Update or add comparison
-    const existingIndex = this.comparisons.findIndex(c => c.model.provider === provider);
-
-    const comparison = {
-      model,
-      inputTokens,
-      outputTokens,
-      requestsPerMinute: rpmInput,
-      timeframe: this.currentTimeframe,
-      enabled: details.querySelector('.provider-enable').checked
-    };
-
-    if (existingIndex >= 0) {
-      this.comparisons[existingIndex] = comparison;
-    } else {
-      this.comparisons.push(comparison);
+      // Adjust current value if it exceeds new max
+      const currentValue = parseInt(input?.value) || suggestedDefault;
+      if (currentValue > maxValue) {
+        this.sharedConfig.requests = suggestedDefault;
+        if (input) input.value = suggestedDefault;
+        slider.value = suggestedDefault;
+      } else {
+        // Ensure slider value matches input value
+        slider.value = currentValue;
+      }
     }
-
-    // Update quota status
-    this.updateQuotaStatus(provider, model, inputTokens, outputTokens, rpmInput);
   },
 
   /**
-   * Update quota status display
+   * Switch between tabs
    */
-  updateQuotaStatus(provider, model, inputTokens, outputTokens, rpm) {
-    const details = document.getElementById(`provider-${provider.toLowerCase().replace(/\s+/g, '-')}`);
-    const quotaDiv = details.querySelector('.quota-status');
-    const quotaContent = quotaDiv.querySelector('.space-y-2');
+  switchTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.classList.remove('active', 'border-primary');
+      btn.classList.add('border-transparent', 'text-text-light/60', 'dark:text-text-dark/60');
+    });
 
-    const validation = Calculator.validateQuotas(model, inputTokens, outputTokens, rpm);
+    // Update tab content
+    document.querySelectorAll('.tab-content').forEach(content => {
+      content.classList.add('hidden');
+    });
 
-    if (validation.warnings.length === 0) {
-      quotaDiv.classList.add('hidden');
-      return;
+    if (tabName === 'cost') {
+      document.getElementById('tab-cost')?.classList.add('active', 'border-primary');
+      document.getElementById('tab-cost')?.classList.remove('border-transparent', 'text-text-light/60', 'dark:text-text-dark/60');
+      document.getElementById('cost-view')?.classList.remove('hidden');
+    } else if (tabName === 'throughput') {
+      document.getElementById('tab-throughput')?.classList.add('active', 'border-primary');
+      document.getElementById('tab-throughput')?.classList.remove('border-transparent', 'text-text-light/60', 'dark:text-text-dark/60');
+      document.getElementById('throughput-view')?.classList.remove('hidden');
     }
-
-    quotaDiv.classList.remove('hidden');
-    quotaContent.innerHTML = validation.warnings.map(warning => {
-      const color = warning.severity === 'error' ? 'text-red-600 dark:text-red-400' : 'text-yellow-600 dark:text-yellow-400';
-      return `
-        <div class="${color}">
-          <div class="flex items-center gap-2 mb-1">
-            <span class="material-symbols-outlined text-sm">${warning.severity === 'error' ? 'error' : 'warning'}</span>
-            <span class="font-medium">${warning.type.toUpperCase()}</span>
-          </div>
-          <p>${warning.message}</p>
-          <div class="mt-1 bg-background-light dark:bg-background-dark rounded-full h-1.5">
-            <div class="h-1.5 rounded-full ${warning.severity === 'error' ? 'bg-red-600' : 'bg-yellow-600'}"
-                 style="width: ${Math.min(warning.percentage, 100)}%"></div>
-          </div>
-        </div>
-      `;
-    }).join('');
   },
 
   /**
    * Calculate and display results
    */
   calculate() {
-    if (this.comparisons.length === 0) {
-      this.showError('No models selected for comparison');
-      return;
-    }
-
-    // Filter enabled comparisons
-    const enabledComparisons = this.comparisons.filter(c => c.enabled);
-
-    if (enabledComparisons.length === 0) {
+    if (this.selectedModels.length === 0) {
       this.clearResults();
       return;
     }
 
-    // Calculate comparisons
-    const results = Calculator.compareModels(enabledComparisons);
+    // Convert to tokens using global units
+    const inputTokens = Utils.toTokens(this.sharedConfig.inputTokens, this.globalInputUnit);
+    const outputTokens = Utils.toTokens(this.sharedConfig.outputTokens, this.globalOutputUnit);
 
-    // Update UI
-    this.updateSummaryCards(results);
-    this.updateChart(results);
-    this.updateTable(results);
+    // Create comparisons for each selected model with the shared config
+    const comparisons = this.selectedModels.map(model => ({
+      model,
+      inputTokens,
+      outputTokens,
+      requestsPerMinute: this.sharedConfig.requests,
+      timeframe: this.currentTimeframe,
+      enabled: true
+    }));
+
+    // Calculate comparisons
+    const results = Calculator.compareModels(comparisons);
+
+    // Update both views
+    this.updateCostView(results);
+    this.updateThroughputView(results);
   },
 
   /**
-   * Update summary cards
+   * Update cost view with all cost-related information
    */
-  updateSummaryCards(results) {
+  updateCostView(results) {
     const enabledResults = results.filter(r => r.enabled);
     if (enabledResults.length === 0) return;
 
     // Find the cheapest option
     const cheapest = enabledResults[0];
 
+    // Update summary cards
+    this.updateCostSummaryCards(cheapest);
+
+    // Update chart (bar for multiple, pie for single)
+    if (enabledResults.length === 1) {
+      this.showSingleModelChart(cheapest);
+    } else {
+      this.showMultiModelChart(enabledResults);
+    }
+
+    // Update cost comparison table
+    this.updateCostTable(results);
+  },
+
+  /**
+   * Update cost summary cards
+   */
+  updateCostSummaryCards(cheapest) {
     const totalCostEl = document.getElementById('total-cost');
-    const inputPriceEl = document.getElementById('input-price');
-    const outputPriceEl = document.getElementById('output-price');
+    const costPer1kEl = document.getElementById('cost-per-1k');
+    const monthlyCostEl = document.getElementById('monthly-cost');
     const timeframeLabelEls = document.querySelectorAll('.timeframe-label');
 
     if (totalCostEl) {
       totalCostEl.textContent = Utils.formatCurrency(cheapest.totalCost.totalCost);
     }
 
-    if (inputPriceEl) {
-      inputPriceEl.textContent = Utils.formatCurrency(cheapest.model.input_price_per_1m);
+    // Calculate cost per 1K requests
+    if (costPer1kEl) {
+      const costPer1k = (cheapest.totalCost.totalCost / this.sharedConfig.requests) * 1000;
+      costPer1kEl.textContent = Utils.formatCurrency(costPer1k);
     }
 
-    if (outputPriceEl) {
-      outputPriceEl.textContent = Utils.formatCurrency(cheapest.model.output_price_per_1m);
+    // Calculate projected monthly cost
+    if (monthlyCostEl) {
+      let monthlyCost;
+      const currentCost = cheapest.totalCost.totalCost;
+
+      switch (this.currentTimeframe) {
+        case 'minute':
+          monthlyCost = currentCost * 60 * 24 * 30; // min to month
+          break;
+        case 'hour':
+          monthlyCost = currentCost * 24 * 30; // hour to month
+          break;
+        case 'day':
+          monthlyCost = currentCost * 30; // day to month
+          break;
+        case 'month':
+          monthlyCost = currentCost; // already monthly
+          break;
+        case 'total':
+          // For total requests, show monthly based on reasonable assumption
+          // Assume the total requests happen over a month
+          monthlyCost = currentCost;
+          break;
+        default:
+          monthlyCost = 0;
+      }
+
+      monthlyCostEl.textContent = Utils.formatCurrency(monthlyCost);
     }
 
     timeframeLabelEls.forEach(el => {
@@ -517,13 +566,15 @@ const App = {
   },
 
   /**
-   * Update comparison chart
+   * Show multi-model bar chart
    */
-  updateChart(results) {
+  showMultiModelChart(enabledResults) {
+    document.getElementById('multi-model-chart')?.classList.remove('hidden');
+    document.getElementById('single-model-chart')?.classList.add('hidden');
+
     const chartContainer = document.getElementById('chart-bars');
     if (!chartContainer) return;
 
-    const enabledResults = results.filter(r => r.enabled);
     if (enabledResults.length === 0) {
       chartContainer.innerHTML = '<p class="text-text-light/60 dark:text-text-dark/60 text-sm">No data to display</p>';
       return;
@@ -549,22 +600,94 @@ const App = {
   },
 
   /**
-   * Update comparison table
+   * Show single-model pie chart
    */
-  updateTable(results) {
+  showSingleModelChart(result) {
+    document.getElementById('multi-model-chart')?.classList.add('hidden');
+    document.getElementById('single-model-chart')?.classList.remove('hidden');
+
+    const pieContainer = document.getElementById('chart-pie');
+    if (!pieContainer) return;
+
+    const inputCost = result.totalCost.totalInputCost;
+    const outputCost = result.totalCost.totalOutputCost;
+    const total = inputCost + outputCost;
+
+    if (total === 0) {
+      pieContainer.innerHTML = '<p class="text-text-light/60 dark:text-text-dark/60 text-sm">No cost data</p>';
+      return;
+    }
+
+    const inputPercent = (inputCost / total * 100).toFixed(1);
+    const outputPercent = (outputCost / total * 100).toFixed(1);
+
+    // Simple CSS-based pie chart using conic gradient
+    pieContainer.innerHTML = `
+      <div class="flex items-center gap-8">
+        <div class="relative w-48 h-48">
+          <div class="w-full h-full rounded-full" style="background: conic-gradient(
+            #ffa500 0% ${inputPercent}%,
+            #ffa50050 ${inputPercent}% 100%
+          )"></div>
+          <div class="absolute inset-0 flex items-center justify-center">
+            <div class="w-32 h-32 rounded-full bg-surface-light dark:bg-surface-dark"></div>
+          </div>
+        </div>
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center gap-3">
+            <div class="w-4 h-4 rounded-sm bg-primary"></div>
+            <div>
+              <p class="text-sm font-medium">Input Tokens</p>
+              <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatCurrency(inputCost)} (${inputPercent}%)</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-4 h-4 rounded-sm bg-primary/30"></div>
+            <div>
+              <p class="text-sm font-medium">Output Tokens</p>
+              <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatCurrency(outputCost)} (${outputPercent}%)</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  /**
+   * Update cost comparison table
+   */
+  updateCostTable(results) {
     const tbody = document.getElementById('comparison-table-body');
     if (!tbody) return;
 
-    tbody.innerHTML = results.map((result, index) => {
+    tbody.innerHTML = results.map((result) => {
       const isEnabled = result.enabled;
       const opacity = isEnabled ? '' : 'text-text-light/50 dark:text-text-dark/50';
       const hasErrors = result.validation.warnings.some(w => w.severity === 'error');
+      const hasWarnings = result.validation.warnings.some(w => w.severity === 'warning');
+
+      let statusIcon = '';
+      let statusText = '';
+      let statusColor = '';
+
+      if (hasErrors) {
+        statusIcon = 'error';
+        statusText = 'Exceeded';
+        statusColor = 'text-red-600 dark:text-red-400';
+      } else if (hasWarnings) {
+        statusIcon = 'warning';
+        statusText = 'Warning';
+        statusColor = 'text-yellow-600 dark:text-yellow-400';
+      } else {
+        statusIcon = 'check_circle';
+        statusText = 'OK';
+        statusColor = 'text-green-600 dark:text-green-400';
+      }
 
       return `
         <tr class="border-b border-border-light dark:border-border-dark">
           <th class="px-6 py-4 font-medium whitespace-nowrap ${opacity}" scope="row">
             ${result.model.model}
-            ${hasErrors ? '<span class="material-symbols-outlined text-red-600 text-sm ml-1" title="Quota exceeded">error</span>' : ''}
           </th>
           <td class="px-6 py-4 ${opacity}">${result.model.provider}</td>
           <td class="px-6 py-4 ${opacity}">${Utils.formatNumber(result.model.context_window)}</td>
@@ -573,6 +696,12 @@ const App = {
           </td>
           <td class="px-6 py-4 ${opacity}">
             ${Utils.formatNumber(result.totalCost.totalInputTokens)} / ${Utils.formatNumber(result.totalCost.totalOutputTokens)}
+          </td>
+          <td class="px-6 py-4 ${opacity}">
+            <div class="flex items-center gap-2 ${statusColor}">
+              <span class="material-symbols-outlined text-sm">${statusIcon}</span>
+              <span class="text-xs">${statusText}</span>
+            </div>
           </td>
           <td class="px-6 py-4 text-right font-medium ${opacity}">
             ${isEnabled ? Utils.formatCurrency(result.totalCost.totalCost) : '-'}
@@ -583,45 +712,297 @@ const App = {
   },
 
   /**
+   * Update throughput view with all throughput-related information
+   */
+  updateThroughputView(results) {
+    const enabledResults = results.filter(r => r.enabled);
+    if (enabledResults.length === 0) {
+      this.clearThroughputView();
+      return;
+    }
+
+    // Update summary cards
+    this.updateThroughputSummaryCards(enabledResults);
+
+    // Update throughput table
+    this.updateThroughputTable(results);
+  },
+
+  /**
+   * Update throughput summary cards
+   */
+  updateThroughputSummaryCards(enabledResults) {
+    const maxRpmEl = document.getElementById('max-rpm');
+    const maxTpmEl = document.getElementById('max-tpm');
+    const currentUtilEl = document.getElementById('current-util');
+
+    // Convert requests to per-minute based on timeframe
+    let requestsPerMinute = this.sharedConfig.requests;
+
+    switch (this.currentTimeframe) {
+      case 'hour':
+        requestsPerMinute = this.sharedConfig.requests / 60;
+        break;
+      case 'day':
+        requestsPerMinute = this.sharedConfig.requests / (60 * 24);
+        break;
+      case 'month':
+        requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30);
+        break;
+      case 'total':
+        // For total requests, assume they happen over a reasonable period (e.g., 1 hour)
+        requestsPerMinute = this.sharedConfig.requests / 60;
+        break;
+      case 'minute':
+      default:
+        requestsPerMinute = this.sharedConfig.requests;
+    }
+
+    // Find max RPM and TPM across all models
+    let maxRpm = 0;
+    let maxTpm = 0;
+    let totalUtilization = 0;
+
+    enabledResults.forEach(result => {
+      const model = result.model;
+      if (model.rpm_limit && model.rpm_limit > maxRpm) {
+        maxRpm = model.rpm_limit;
+      }
+      if (model.tpm_limit && model.tpm_limit > maxTpm) {
+        maxTpm = model.tpm_limit;
+      }
+
+      // Calculate utilization for this model
+      const rpmUtil = model.rpm_limit ? (requestsPerMinute / model.rpm_limit * 100) : 0;
+      const totalTokens = result.inputTokens + result.outputTokens;
+      const tokensPerMinute = totalTokens * requestsPerMinute;
+      const tpmUtil = model.tpm_limit ? (tokensPerMinute / model.tpm_limit * 100) : 0;
+      const modelUtil = Math.max(rpmUtil, tpmUtil);
+      totalUtilization += modelUtil;
+    });
+
+    const avgUtilization = enabledResults.length > 0 ? totalUtilization / enabledResults.length : 0;
+
+    if (maxRpmEl) {
+      maxRpmEl.textContent = maxRpm > 0 ? Utils.formatNumber(maxRpm) : 'N/A';
+    }
+
+    if (maxTpmEl) {
+      maxTpmEl.textContent = maxTpm > 0 ? Utils.formatNumber(maxTpm) : 'N/A';
+    }
+
+    if (currentUtilEl) {
+      currentUtilEl.textContent = avgUtilization > 0 ? `${avgUtilization.toFixed(1)}%` : 'N/A';
+    }
+  },
+
+  /**
+   * Update throughput comparison table
+   */
+  updateThroughputTable(results) {
+    const tbody = document.getElementById('throughput-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = results.map(result => {
+      const model = result.model;
+      const totalTokens = result.inputTokens + result.outputTokens;
+
+      // Convert requests to per-minute based on timeframe
+      let requestsPerMinute = this.sharedConfig.requests;
+
+      switch (this.currentTimeframe) {
+        case 'hour':
+          requestsPerMinute = this.sharedConfig.requests / 60;
+          break;
+        case 'day':
+          requestsPerMinute = this.sharedConfig.requests / (60 * 24);
+          break;
+        case 'month':
+          requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30);
+          break;
+        case 'total':
+          // For total requests, we can't determine per-minute rate
+          // Assume they happen over a reasonable period (e.g., 1 hour)
+          requestsPerMinute = this.sharedConfig.requests / 60;
+          break;
+        case 'minute':
+        default:
+          requestsPerMinute = this.sharedConfig.requests;
+      }
+
+      // Calculate RPM usage
+      const rpmUsage = model.rpm_limit ? (requestsPerMinute / model.rpm_limit * 100) : 0;
+      const rpmUsageStr = model.rpm_limit ? `${rpmUsage.toFixed(1)}%` : 'N/A';
+
+      // Calculate TPM usage
+      const tokensPerMinute = totalTokens * requestsPerMinute;
+      const tpmUsage = model.tpm_limit ? (tokensPerMinute / model.tpm_limit * 100) : 0;
+      const tpmUsageStr = model.tpm_limit ? `${tpmUsage.toFixed(1)}%` : 'N/A';
+
+      // Determine status
+      const hasErrors = result.validation.warnings.some(w => w.severity === 'error');
+      const hasWarnings = result.validation.warnings.some(w => w.severity === 'warning');
+
+      let statusIcon = '';
+      let statusText = '';
+      let statusColor = '';
+
+      if (hasErrors) {
+        statusIcon = 'error';
+        statusText = 'Exceeded';
+        statusColor = 'text-red-600 dark:text-red-400';
+      } else if (hasWarnings) {
+        statusIcon = 'warning';
+        statusText = 'Warning';
+        statusColor = 'text-yellow-600 dark:text-yellow-400';
+      } else {
+        statusIcon = 'check_circle';
+        statusText = 'OK';
+        statusColor = 'text-green-600 dark:text-green-400';
+      }
+
+      // Create progress bar for usage
+      const rpmBarWidth = Math.min(rpmUsage, 100);
+      const tpmBarWidth = Math.min(tpmUsage, 100);
+
+      let rpmBarColor = 'bg-green-500';
+      if (rpmUsage > 100) rpmBarColor = 'bg-red-500';
+      else if (rpmUsage > 80) rpmBarColor = 'bg-yellow-500';
+
+      let tpmBarColor = 'bg-green-500';
+      if (tpmUsage > 100) tpmBarColor = 'bg-red-500';
+      else if (tpmUsage > 80) tpmBarColor = 'bg-yellow-500';
+
+      return `
+        <tr class="border-b border-border-light dark:border-border-dark">
+          <th class="px-6 py-4 font-medium whitespace-nowrap" scope="row">${model.model}</th>
+          <td class="px-6 py-4">${model.provider}</td>
+          <td class="px-6 py-4">${model.rpm_limit ? Utils.formatNumber(model.rpm_limit) : 'N/A'}</td>
+          <td class="px-6 py-4">${model.tpm_limit ? Utils.formatNumber(model.tpm_limit) : 'N/A'}</td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-2">
+              <div class="flex-1 h-2 bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
+                <div class="${rpmBarColor} h-full transition-all duration-300" style="width: ${rpmBarWidth}%"></div>
+              </div>
+              <span class="text-xs w-12 text-right">${rpmUsageStr}</span>
+            </div>
+          </td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-2">
+              <div class="flex-1 h-2 bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
+                <div class="${tpmBarColor} h-full transition-all duration-300" style="width: ${tpmBarWidth}%"></div>
+              </div>
+              <span class="text-xs w-12 text-right">${tpmUsageStr}</span>
+            </div>
+          </td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-2 ${statusColor}">
+              <span class="material-symbols-outlined text-sm">${statusIcon}</span>
+              <span class="text-xs">${statusText}</span>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  },
+
+  /**
+   * Clear throughput view
+   */
+  clearThroughputView() {
+    const maxRpmEl = document.getElementById('max-rpm');
+    const maxTpmEl = document.getElementById('max-tpm');
+    const currentUtilEl = document.getElementById('current-util');
+    const tbody = document.getElementById('throughput-table-body');
+
+    if (maxRpmEl) maxRpmEl.textContent = '-';
+    if (maxTpmEl) maxTpmEl.textContent = '-';
+    if (currentUtilEl) currentUtilEl.textContent = '-';
+
+    if (tbody) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
+            Select models to see throughput analysis
+          </td>
+        </tr>
+      `;
+    }
+  },
+
+  /**
    * Clear results
    */
   clearResults() {
+    // Clear cost view
     const totalCostEl = document.getElementById('total-cost');
+    const costPer1kEl = document.getElementById('cost-per-1k');
+    const monthlyCostEl = document.getElementById('monthly-cost');
     const chartContainer = document.getElementById('chart-bars');
     const tbody = document.getElementById('comparison-table-body');
 
     if (totalCostEl) totalCostEl.textContent = '$0.00';
-    if (chartContainer) chartContainer.innerHTML = '<p class="text-text-light/60 dark:text-text-dark/60 text-sm">No data to display</p>';
-    if (tbody) tbody.innerHTML = '';
+    if (costPer1kEl) costPer1kEl.textContent = '$0.00';
+    if (monthlyCostEl) monthlyCostEl.textContent = '$0.00';
+    if (chartContainer) chartContainer.innerHTML = '<p class="text-text-light/60 dark:text-text-dark/60 text-sm">Select models to compare</p>';
+    if (tbody) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
+            Select models to see results
+          </td>
+        </tr>
+      `;
+    }
+
+    // Show multi-model chart container by default
+    document.getElementById('multi-model-chart')?.classList.remove('hidden');
+    document.getElementById('single-model-chart')?.classList.add('hidden');
+
+    // Clear throughput view
+    this.clearThroughputView();
   },
 
   /**
    * Reset all inputs
    */
   reset() {
-    this.comparisons = [];
+    // Clear selected models
+    this.selectedModels = [];
 
-    // Uncheck all provider checkboxes
-    document.querySelectorAll('.provider-enable').forEach(cb => {
-      cb.checked = false;
-    });
+    // Reset shared config to defaults
+    this.sharedConfig = {
+      inputTokens: 500,
+      outputTokens: 1500,
+      requests: 100000
+    };
 
-    // Close all accordions
-    document.querySelectorAll('.provider-accordion').forEach(details => {
-      details.removeAttribute('open');
-    });
+    // Reset UI inputs
+    document.getElementById('shared-input-tokens').value = 5000;
+    document.getElementById('shared-input-slider').value = 5000;
+    document.getElementById('shared-output-tokens').value = 1500;
+    document.getElementById('shared-output-slider').value = 1500;
+    document.getElementById('shared-requests').value = 1000;
+    document.getElementById('shared-requests-slider').value = 1000;
 
+    // Clear model search
+    const searchInput = document.getElementById('model-search');
+    if (searchInput) {
+      searchInput.value = '';
+      // Show all model options
+      document.querySelectorAll('.model-option').forEach(opt => opt.style.display = '');
+      document.querySelectorAll('.provider-group').forEach(group => group.style.display = '');
+    }
+
+    // Update displays
+    this.updateSelectedModelsDisplay();
+    this.updateModelSelectorCheckboxes();
     this.clearResults();
 
-    // Reinitialize with first provider
-    const firstProvider = Object.keys(this.getProviders())[0];
-    if (firstProvider) {
-      const details = document.getElementById(`provider-${firstProvider.toLowerCase().replace(/\s+/g, '-')}`);
-      const checkbox = details.querySelector('.provider-enable');
-      checkbox.checked = true;
-      details.setAttribute('open', '');
-      this.addComparison(firstProvider);
-      this.calculate();
+    // Reinitialize with default model
+    const gpt4o = this.models.find(m => m.provider === 'OpenAI' && m.model === 'GPT-4o');
+    if (gpt4o) {
+      this.addModelToSelection(gpt4o);
     }
   },
 

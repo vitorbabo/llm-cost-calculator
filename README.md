@@ -21,34 +21,15 @@ A comprehensive web-based calculator for estimating and comparing costs across d
 - **Visual Cost Breakdown**: Bar charts and detailed tables for comparison
 - **Unit Conversions**: Automatic conversion between tokens, characters, and words
 
-### Supported Models (28+ models)
+### Supported Models (examples)
 
 #### OpenAI
 - GPT-4o, GPT-4o-mini
 - GPT-4-Turbo, GPT-4
-- GPT-3.5-Turbo variants
 
-#### Anthropic
+#### AWS
 - Claude 3.5 Sonnet
 - Claude 3 Opus, Sonnet, Haiku
-- Claude 2.x and Claude Instant
-
-#### Google
-- Gemini 1.5 Pro, Flash
-- Gemini 1.0 Pro
-- PaLM-2
-
-#### Cohere
-- Command R+, Command R
-- Command, Command Light
-
-#### Meta
-- Llama 3 (70B, 8B)
-- Llama 2 (70B, 13B)
-
-#### Mistral
-- Mistral Large, Medium, Small
-- Mistral 7B
 
 ## Installation
 
