@@ -727,28 +727,28 @@ const App = {
 
         // Simple CSS-based pie chart using conic gradient
         pieContainer.innerHTML = `
-          <div class="flex flex-col items-center gap-4">
-            <div class="relative w-32 h-32">
+          <div class="flex flex-col items-center justify-start gap-2">
+            <div class="relative w-24 h-24">
               <div class="w-full h-full rounded-full" style="background: conic-gradient(
                 #ffa500 0% ${inputPercent}%,
                 #ffa50050 ${inputPercent}% 100%
               )"></div>
               <div class="absolute inset-0 flex items-center justify-center">
-                <div class="w-20 h-20 rounded-full bg-surface-light dark:bg-surface-dark"></div>
+                <div class="w-16 h-16 rounded-full bg-surface-light dark:bg-surface-dark"></div>
               </div>
             </div>
-            <div class="flex flex-col gap-2 w-full">
+            <div class="flex flex-col gap-1.5 w-full">
               <div class="flex items-center gap-2">
-                <div class="w-3 h-3 rounded-sm bg-primary"></div>
-                <div class="flex-1">
-                  <p class="text-xs font-medium">Input Tokens</p>
+                <div class="w-3 h-3 rounded-sm bg-primary flex-shrink-0"></div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs font-medium">Input</p>
                   <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatCurrency(inputCost)} (${inputPercent}%)</p>
                 </div>
               </div>
               <div class="flex items-center gap-2">
-                <div class="w-3 h-3 rounded-sm bg-primary/30"></div>
-                <div class="flex-1">
-                  <p class="text-xs font-medium">Output Tokens</p>
+                <div class="w-3 h-3 rounded-sm bg-primary/30 flex-shrink-0"></div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs font-medium">Output</p>
                   <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatCurrency(outputCost)} (${outputPercent}%)</p>
                 </div>
               </div>
@@ -796,12 +796,12 @@ const App = {
     container.innerHTML = gauges.map(gauge => {
       if (gauge.value === null) {
         return `
-          <div class="flex flex-col items-center gap-2">
+          <div class="flex flex-col items-center justify-start gap-1.5" style="width: 80px;">
             <div class="radial-gauge opacity-30">
               ${this.createRadialGaugeSVG(0, '#9ca3af')}
             </div>
-            <p class="text-xs font-medium text-text-light/70 dark:text-text-dark/70">${gauge.label}</p>
-            <p class="text-xs text-text-light/60 dark:text-text-dark/60">N/A</p>
+            <p class="text-xs font-medium text-text-light/70 dark:text-text-dark/70 text-center">${gauge.label}</p>
+            <p class="text-xs text-text-light/60 dark:text-text-dark/60 text-center">N/A</p>
           </div>
         `;
       }
@@ -812,15 +812,15 @@ const App = {
       else if (percentage > 80) color = '#f59e0b'; // yellow
 
       return `
-        <div class="flex flex-col items-center gap-1">
+        <div class="flex flex-col items-center justify-start gap-1.5" style="width: 80px;">
           <div class="radial-gauge">
             ${this.createRadialGaugeSVG(percentage, color)}
             <div class="radial-gauge-text">
-              <p class="text-base font-bold" style="color: ${color}">${percentage.toFixed(0)}%</p>
+              <p class="text-sm font-bold" style="color: ${color}">${percentage.toFixed(0)}%</p>
             </div>
           </div>
-          <p class="text-xs font-medium text-text-light/70 dark:text-text-dark/70">${gauge.label}</p>
-          <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatNumber(gauge.current)} / ${Utils.formatNumber(gauge.max)}</p>
+          <p class="text-xs font-medium text-text-light/70 dark:text-text-dark/70 text-center">${gauge.label}</p>
+          <p class="text-xs text-text-light/60 dark:text-text-dark/60 text-center break-words">${Utils.formatNumber(gauge.current)} / ${Utils.formatNumber(gauge.max)}</p>
         </div>
       `;
     }).join('');
@@ -830,14 +830,14 @@ const App = {
    * Create SVG for radial gauge
    */
   createRadialGaugeSVG(percentage, color) {
-    const radius = 40;
+    const radius = 32;
     const circumference = 2 * Math.PI * radius;
     const offset = circumference - (Math.min(percentage, 100) / 100) * circumference;
 
     return `
-      <svg width="100" height="100" class="radial-gauge-circle">
-        <circle cx="50" cy="50" r="${radius}" stroke-width="8" class="radial-gauge-bg"></circle>
-        <circle cx="50" cy="50" r="${radius}" stroke-width="8"
+      <svg width="80" height="80" class="radial-gauge-circle">
+        <circle cx="40" cy="40" r="${radius}" stroke-width="6" class="radial-gauge-bg"></circle>
+        <circle cx="40" cy="40" r="${radius}" stroke-width="6"
                 class="radial-gauge-progress"
                 stroke="${color}"
                 stroke-dasharray="${circumference}"
