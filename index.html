@@ -15,6 +15,48 @@
     'GRAD' 0,
     'opsz' 24
   }
+
+  /* Tab styling */
+  .tab-btn.active {
+    color: var(--tw-color-primary);
+  }
+
+  /* Progress bar animations */
+  .progress-bar {
+    transition: width 0.3s ease-in-out;
+  }
+
+  /* Pie chart styling for better dark mode support */
+  #chart-pie canvas {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Status indicators */
+  .status-ok {
+    color: #10b981;
+  }
+
+  .status-warning {
+    color: #f59e0b;
+  }
+
+  .status-error {
+    color: #ef4444;
+  }
+
+  /* Dark mode adjustments for status colors */
+  .dark .status-ok {
+    color: #34d399;
+  }
+
+  .dark .status-warning {
+    color: #fbbf24;
+  }
+
+  .dark .status-error {
+    color: #f87171;
+  }
 </style>
 <script id="tailwind-config">
   tailwind.config = {
@@ -61,36 +103,94 @@
 
   <main class="flex-1 w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
     <div class="mb-8">
-      <h1 class="text-4xl font-black tracking-tighter">LLM Pricing Calculator</h1>
+      <!-- <h1 class="text-4xl font-black tracking-tighter">LLM Pricing Calculator</h1> -->
       <p class="text-text-light/70 dark:text-text-dark/70 mt-1">Analyze cost, throughput, and limitations of LLM services.</p>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
       <!-- Left Column: Inputs -->
       <div class="lg:col-span-2 flex flex-col gap-6">
-        <!-- Provider Accordions (dynamically populated) -->
-        <div id="providers-container" class="flex flex-col gap-3">
-          <!-- Providers will be dynamically loaded here -->
+        <!-- Usage Input Card -->
+        <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border-2 border-primary/30">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="material-symbols-outlined text-primary">tune</span>
+            <h3 class="font-bold text-lg">Usage Parameters</h3>
+          </div>
+          <p class="text-xs text-text-light/60 dark:text-text-dark/60 mb-4">These settings apply to all selected models for fair comparison</p>
+
+          <div class="space-y-5">
+            <!-- Average Prompt Tokens -->
+            <div class="flex flex-col gap-2">
+              <label class="flex items-center justify-between">
+                <span class="text-sm font-medium">Average Input Tokens</span>
+                <input type="number" id="shared-input-tokens" value="5000" min="1" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
+              </label>
+              <input type="range" id="shared-input-slider" value="5000" min="1" max="10000" step="1" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
+            </div>
+
+            <!-- Average Completion Tokens -->
+            <div class="flex flex-col gap-2">
+              <label class="flex items-center justify-between">
+                <span class="text-sm font-medium">Average Output Tokens</span>
+                <input type="number" id="shared-output-tokens" value="1500" min="1" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
+              </label>
+              <input type="range" id="shared-output-slider" value="1500" min="1" max="10000" step="1" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
+            </div>
+
+            <!-- Total Requests -->
+            <div class="flex flex-col gap-2">
+              <label class="flex items-center justify-between">
+                <span class="text-sm font-medium">
+                  <span id="requests-label">Total Requests</span>
+                </span>
+                <input type="number" id="shared-requests" value="1000" min="1" max="10000000" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
+              </label>
+              <input type="range" id="shared-requests-slider" value="1000" min="1" max="10000000" step="1000" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- Model Comparison Panel -->
+        <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="material-symbols-outlined text-primary">compare_arrows</span>
+            <h3 class="font-bold text-lg">Model Comparison</h3>
+          </div>
+          <p class="text-xs text-text-light/60 dark:text-text-dark/60 mb-4">Select multiple models to compare (you can choose multiple models from the same provider)</p>
+
+          <!-- Model Search/Filter -->
+          <div class="mb-4">
+            <div class="relative">
+              <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-light/40 dark:text-text-dark/40 text-lg">search</span>
+              <input type="text" id="model-search" placeholder="Search models..." class="w-full pl-10 pr-3 py-2 text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
+            </div>
+          </div>
+
+          <!-- Selected Models Display -->
+          <div id="selected-models" class="mb-4 flex flex-wrap gap-2 min-h-[2.5rem] p-2 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark">
+            <p class="text-xs text-text-light/60 dark:text-text-dark/60 m-auto">No models selected</p>
+          </div>
+
+          <!-- Model Selection Dropdown/List -->
+          <div id="model-selector" class="max-h-80 overflow-y-auto border border-border-light dark:border-border-dark rounded-lg bg-background-light dark:bg-background-dark">
+            <!-- Models will be populated here grouped by provider -->
+          </div>
         </div>
 
         <!-- Action Buttons -->
         <div class="flex gap-4">
-          <button id="calculate-btn" class="flex-1 text-white bg-primary hover:bg-primary/90 focus:ring-4 focus:ring-primary/30 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors">
-            Calculate
-          </button>
-          <button id="reset-btn" class="flex-1 bg-border-light dark:bg-border-dark hover:bg-border-light/70 dark:hover:bg-border-dark/70 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors">
+          <button id="reset-btn" class="w-full bg-border-light dark:bg-border-dark hover:bg-border-light/70 dark:hover:bg-border-dark/70 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors">
             Reset
           </button>
         </div>
 
-        <!-- Advanced Settings -->
+        <!-- Additional Settings -->
         <div class="mt-4">
           <button id="advanced-toggle" class="flex items-center gap-2 text-sm text-text-light/70 dark:text-text-dark/70 hover:text-text-light dark:hover:text-text-dark transition-colors">
             <span class="material-symbols-outlined text-lg">tune</span>
-            <span>Advanced Settings</span>
+            <span>Additional Settings</span>
           </button>
           <div id="advanced-panel" class="hidden mt-4 p-4 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
-            <h3 class="font-medium mb-4">Advanced Options</h3>
             <div class="space-y-4">
               <!-- Timeframe Selector -->
               <div class="flex flex-col gap-2">
@@ -98,10 +198,10 @@
                   <p class="text-sm font-medium">Calculate Cost For</p>
                   <select id="timeframe-select" class="form-select w-full rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary">
                     <option value="minute">Per Minute</option>
-                    <option value="hour" selected>Per Hour</option>
+                    <option value="hour">Per Hour</option>
                     <option value="day">Per Day</option>
                     <option value="month">Per Month</option>
-                    <option value="total">Total Requests</option>
+                    <option value="total" selected>Total Requests</option>
                   </select>
                 </label>
               </div>
@@ -158,60 +258,127 @@
 
       <!-- Right Column: Results -->
       <div class="lg:col-span-3 flex flex-col gap-8">
-        <!-- Summary Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
-            <h3 class="font-medium text-sm text-text-light/70 dark:text-text-dark/70 mb-1">
-              Estimated Cost <span class="timeframe-label">/ hour</span>
-            </h3>
-            <p id="total-cost" class="text-4xl font-bold">$0.00</p>
-            <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-2">Cheapest option</p>
+        <!-- Tab Navigation -->
+        <div class="flex gap-2 border-b border-border-light dark:border-border-dark">
+          <button id="tab-cost" class="tab-btn active px-6 py-3 font-medium text-sm transition-colors border-b-2 border-primary">
+            Cost Analysis
+          </button>
+          <button id="tab-throughput" class="tab-btn px-6 py-3 font-medium text-sm transition-colors border-b-2 border-transparent text-text-light/60 dark:text-text-dark/60 hover:text-text-light dark:hover:text-text-dark">
+            Throughput Analysis
+          </button>
+        </div>
+
+        <!-- Cost Analysis Tab Content -->
+        <div id="cost-view" class="tab-content">
+          <!-- Summary Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+            <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
+              <h3 class="font-medium text-sm text-text-light/70 dark:text-text-dark/70 mb-1">
+                Estimated Cost <span class="timeframe-label">/ hour</span>
+              </h3>
+              <p id="total-cost" class="text-4xl font-bold">$0.00</p>
+              <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-2">Cheapest option</p>
+            </div>
+            <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
+              <h3 class="font-medium text-sm text-text-light/70 dark:text-text-dark/70 mb-1">Cost per 1K Requests</h3>
+              <p id="cost-per-1k" class="text-4xl font-bold">$0.00</p>
+              <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-2">Cheapest option</p>
+            </div>
+            <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
+              <h3 class="font-medium text-sm text-text-light/70 dark:text-text-dark/70 mb-1">Projected Monthly Cost</h3>
+              <p id="monthly-cost" class="text-4xl font-bold">$0.00</p>
+              <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-2">Extrapolated estimate</p>
+            </div>
           </div>
-          <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
-            <h3 class="font-medium text-sm text-text-light/70 dark:text-text-dark/70 mb-1">Cost / 1M Input Tokens</h3>
-            <p id="input-price" class="text-4xl font-bold">$0.00</p>
-            <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-2">For selected model</p>
+
+          <!-- Charts Container -->
+          <div id="multi-model-chart" class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark mb-8">
+            <h3 class="font-medium mb-6">Cost Comparison per Model</h3>
+            <div id="chart-bars" class="flex items-end gap-6 h-48">
+              <p class="text-text-light/60 dark:text-text-dark/60 text-sm">Select models to compare</p>
+            </div>
           </div>
-          <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
-            <h3 class="font-medium text-sm text-text-light/70 dark:text-text-dark/70 mb-1">Cost / 1M Output Tokens</h3>
-            <p id="output-price" class="text-4xl font-bold">$0.00</p>
-            <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-2">For selected model</p>
+
+          <div id="single-model-chart" class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark hidden mb-8">
+            <h3 class="font-medium mb-6">Cost Breakdown</h3>
+            <div id="chart-pie" class="flex items-center justify-center h-48">
+              <canvas id="pie-canvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Costs Table -->
+          <div class="overflow-x-auto rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark mb-8">
+            <table class="w-full text-sm text-left">
+              <thead class="text-xs uppercase bg-background-light dark:bg-background-dark">
+                <tr>
+                  <th class="px-6 py-3" scope="col">Model</th>
+                  <th class="px-6 py-3" scope="col">Provider</th>
+                  <th class="px-6 py-3" scope="col">Max Context</th>
+                  <th class="px-6 py-3" scope="col">Price (In/Out)</th>
+                  <th class="px-6 py-3" scope="col">Tokens (In/Out)</th>
+                  <th class="px-6 py-3" scope="col">Quota Status</th>
+                  <th class="px-6 py-3 text-right" scope="col">Total Cost</th>
+                </tr>
+              </thead>
+              <tbody id="comparison-table-body">
+                <tr>
+                  <td colspan="7" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
+                    Select models to see results
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
-        <!-- Bar Chart -->
-        <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
-          <h3 class="font-medium mb-6">Cost Comparison per Model</h3>
-          <div id="chart-bars" class="flex items-end gap-6 h-48">
-            <p class="text-text-light/60 dark:text-text-dark/60 text-sm">Select models to compare</p>
+        <!-- Throughput Analysis Tab Content -->
+        <div id="throughput-view" class="tab-content hidden">
+          <!-- Summary Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+            <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
+              <h3 class="font-medium text-sm text-text-light/70 dark:text-text-dark/70 mb-1">Max Requests/Min</h3>
+              <p id="max-rpm" class="text-4xl font-bold">-</p>
+              <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-2">Across selected models</p>
+            </div>
+            <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
+              <h3 class="font-medium text-sm text-text-light/70 dark:text-text-dark/70 mb-1">Max Tokens/Min</h3>
+              <p id="max-tpm" class="text-4xl font-bold">-</p>
+              <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-2">Across selected models</p>
+            </div>
+            <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
+              <h3 class="font-medium text-sm text-text-light/70 dark:text-text-dark/70 mb-1">Current Utilization</h3>
+              <p id="current-util" class="text-4xl font-bold">-</p>
+              <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-2">Average usage %</p>
+            </div>
           </div>
-        </div>
 
-        <!-- Detailed Table -->
-        <div class="overflow-x-auto rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
-          <table class="w-full text-sm text-left">
-            <thead class="text-xs uppercase bg-background-light dark:bg-background-dark">
-              <tr>
-                <th class="px-6 py-3" scope="col">Model</th>
-                <th class="px-6 py-3" scope="col">Provider</th>
-                <th class="px-6 py-3" scope="col">Max Context</th>
-                <th class="px-6 py-3" scope="col">Price (In/Out)</th>
-                <th class="px-6 py-3" scope="col">Tokens (In/Out)</th>
-                <th class="px-6 py-3 text-right" scope="col">Total Cost</th>
-              </tr>
-            </thead>
-            <tbody id="comparison-table-body">
-              <tr>
-                <td colspan="6" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
-                  Select models and click Calculate to see results
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <!-- Throughput Comparison Table -->
+          <div class="overflow-x-auto rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
+            <table class="w-full text-sm text-left">
+              <thead class="text-xs uppercase bg-background-light dark:bg-background-dark">
+                <tr>
+                  <th class="px-6 py-3" scope="col">Model</th>
+                  <th class="px-6 py-3" scope="col">Provider</th>
+                  <th class="px-6 py-3" scope="col">Max RPM</th>
+                  <th class="px-6 py-3" scope="col">Max TPM</th>
+                  <th class="px-6 py-3" scope="col">RPM Usage</th>
+                  <th class="px-6 py-3" scope="col">TPM Usage</th>
+                  <th class="px-6 py-3" scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody id="throughput-table-body">
+                <tr>
+                  <td colspan="7" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
+                    Select models to see throughput analysis
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <!-- Info Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <!-- <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
             <div class="flex items-start gap-3">
               <span class="material-symbols-outlined text-blue-600 dark:text-blue-400">info</span>
@@ -234,15 +401,15 @@
               </div>
             </div>
           </div>
-        </div>
+        </div> -->
       </div>
     </div>
   </main>
 
   <!-- Footer -->
   <footer class="border-t border-border-light dark:border-border-dark px-4 sm:px-6 lg:px-8 py-6 text-center text-sm text-text-light/60 dark:text-text-dark/60 mt-12">
-    <p>LLM Cost Calculator • Compare pricing across multiple LLM providers</p>
-    <p class="mt-2 text-xs">Prices are approximate and may vary. Check provider websites for current pricing.</p>
+    <p>LLM Cost Calculator</p>
+    <p class="mt-2 text-xs">Prices are approximate and may vary. Check provider for current pricing.</p>
   </footer>
 </div>
 
