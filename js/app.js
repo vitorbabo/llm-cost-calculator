@@ -1358,211 +1358,38 @@ const App = {
 
   /**
    * Show multi-model bar chart
+   * DEPRECATED: Chart functionality removed to simplify UI
    */
   showMultiModelChart(enabledResults) {
-    document.getElementById('multi-model-chart')?.classList.remove('hidden');
-    document.getElementById('single-model-chart')?.classList.add('hidden');
-
-    const chartContainer = document.getElementById('chart-bars');
-    if (!chartContainer) return;
-
-    if (enabledResults.length === 0) {
-      chartContainer.innerHTML = '<p class="text-text-light/60 dark:text-text-dark/60 text-sm">No data to display</p>';
-      return;
-    }
-
-    const maxCost = Math.max(...enabledResults.map(r => r.totalCost.totalCost));
-
-    chartContainer.innerHTML = enabledResults.map(result => {
-      const heightPercent = maxCost > 0 ? (result.totalCost.totalCost / maxCost * 100) : 0;
-      const isFirst = result === enabledResults[0];
-
-      // Determine quota status
-      const hasErrors = result.validation.warnings.some(w => w.severity === 'error');
-      const hasWarnings = result.validation.warnings.some(w => w.severity === 'warning');
-
-      let quotaIcon = '';
-      let quotaColor = '';
-
-      if (hasErrors) {
-        quotaIcon = 'error';
-        quotaColor = 'text-red-600 dark:text-red-400';
-      } else if (hasWarnings) {
-        quotaIcon = 'warning';
-        quotaColor = 'text-yellow-600 dark:text-yellow-400';
-      } else {
-        quotaIcon = 'check_circle';
-        quotaColor = 'text-green-600 dark:text-green-400';
-      }
-
-      // Calculate overall quota usage for badge
-      const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
-      const requestsPerMinute = this.sharedConfig.rpm;
-      const tokensPerMinute = totalTokens * requestsPerMinute;
-
-      const contextUsage = result.model.context_window ? (totalTokens / result.model.context_window * 100) : 0;
-      const rpmUsage = result.model.rpm_limit ? (requestsPerMinute / result.model.rpm_limit * 100) : 0;
-      const tpmUsage = result.model.tpm_limit ? (tokensPerMinute / result.model.tpm_limit * 100) : 0;
-      const maxUsage = Math.max(contextUsage, rpmUsage, tpmUsage);
-
-      return `
-        <div class="flex flex-col items-center flex-1 h-full" style="min-width: 60px;">
-          <div class="flex flex-col items-center gap-1 mb-2">
-            <span class="material-symbols-outlined text-base ${quotaColor}" title="Quota status">${quotaIcon}</span>
-            <p class="text-xs ${quotaColor} h-4">${maxUsage > 0 ? `${maxUsage.toFixed(0)}%` : ''}</p>
-          </div>
-          <div class="flex-1 w-full flex flex-col justify-end">
-            <div class="w-full ${isFirst ? 'bg-primary' : 'bg-primary/30'} rounded-t-md transition-all duration-300 relative"
-                 style="height: ${heightPercent}%"
-                 title="${result.model.model}: ${Utils.formatCurrency(result.totalCost.totalCost)} | Quota: ${maxUsage.toFixed(0)}%">
-              ${maxUsage > 0 ? `
-                <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-t from-${hasErrors ? 'red' : hasWarnings ? 'yellow' : 'green'}-500/50 to-transparent"></div>
-              ` : ''}
-            </div>
-          </div>
-          <div class="flex flex-col items-center gap-0.5 mt-2">
-            <p class="text-xs text-text-light/70 dark:text-text-dark/70 text-center truncate w-full px-1">${result.model.model}</p>
-            <p class="text-xs font-medium">${Utils.formatCurrency(result.totalCost.totalCost)}</p>
-          </div>
-        </div>
-      `;
-    }).join('');
+    // Chart rendering removed - all information available in table
+    return;
   },
 
   /**
    * Show single-model pie chart
+   * DEPRECATED: Chart functionality removed to simplify UI
    */
   showSingleModelChart(result) {
-    document.getElementById('multi-model-chart')?.classList.add('hidden');
-    document.getElementById('single-model-chart')?.classList.remove('hidden');
-
-    const pieContainer = document.getElementById('chart-pie');
-    const gaugesContainer = document.getElementById('quota-gauges');
-
-    // Render cost pie chart
-    if (pieContainer) {
-      const inputCost = result.totalCost.totalInputCost;
-      const outputCost = result.totalCost.totalOutputCost;
-      const total = inputCost + outputCost;
-
-      if (total === 0) {
-        pieContainer.innerHTML = '<p class="text-text-light/60 dark:text-text-dark/60 text-sm">No cost data</p>';
-      } else {
-        const inputPercent = (inputCost / total * 100).toFixed(1);
-        const outputPercent = (outputCost / total * 100).toFixed(1);
-
-        // Simple CSS-based pie chart using conic gradient
-        pieContainer.innerHTML = `
-          <div class="flex items-center justify-center gap-4">
-            <div class="relative w-24 h-24 flex-shrink-0">
-              <div class="w-full h-full rounded-full" style="background: conic-gradient(
-                #ffa500 0% ${inputPercent}%,
-                #ffa50050 ${inputPercent}% 100%
-              )"></div>
-              <div class="absolute inset-0 flex items-center justify-center">
-                <div class="w-16 h-16 rounded-full bg-surface-light dark:bg-surface-dark"></div>
-              </div>
-            </div>
-            <div class="flex flex-col gap-2">
-              <div class="flex items-center gap-2">
-                <div class="w-3 h-3 rounded-sm bg-primary flex-shrink-0"></div>
-                <div class="flex-1 min-w-0">
-                  <p class="text-xs font-medium">Input</p>
-                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatCurrency(inputCost)} (${inputPercent}%)</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <div class="w-3 h-3 rounded-sm bg-primary/30 flex-shrink-0"></div>
-                <div class="flex-1 min-w-0">
-                  <p class="text-xs font-medium">Output</p>
-                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatCurrency(outputCost)} (${outputPercent}%)</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
-      }
-    }
-
-    // Render quota gauges
-    if (gaugesContainer) {
-      this.renderQuotaGauges(gaugesContainer, result);
-    }
+    // Chart rendering removed - all information available in table
+    return;
   },
 
   /**
    * Render radial gauge charts for quota usage
+   * DEPRECATED: Chart functionality removed to simplify UI
    */
   renderQuotaGauges(container, result) {
-    const model = result.model;
-    const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
-
-    // RPM is now directly available in config
-    const requestsPerMinute = this.sharedConfig.rpm;
-    const tokensPerMinute = totalTokens * requestsPerMinute;
-
-    // Calculate usage percentages
-    const contextUsage = model.context_window ? Math.min((totalTokens / model.context_window * 100), 150) : 0;
-    const rpmUsage = model.rpm_limit ? Math.min((requestsPerMinute / model.rpm_limit * 100), 150) : null;
-    const tpmUsage = model.tpm_limit ? Math.min((tokensPerMinute / model.tpm_limit * 100), 150) : null;
-
-    const gauges = [
-      { label: 'Context', value: contextUsage, max: model.context_window, current: totalTokens },
-      { label: 'RPM', value: rpmUsage, max: model.rpm_limit, current: Math.round(requestsPerMinute) },
-      { label: 'TPM', value: tpmUsage, max: model.tpm_limit, current: Math.round(tokensPerMinute) }
-    ];
-
-    container.innerHTML = gauges.map(gauge => {
-      if (gauge.value === null) {
-        return `
-          <div class="flex flex-col items-center justify-start gap-1.5" style="width: 80px;">
-            <div class="radial-gauge opacity-30">
-              ${this.createRadialGaugeSVG(0, '#9ca3af')}
-            </div>
-            <p class="text-xs font-medium text-text-light/70 dark:text-text-dark/70 text-center">${gauge.label}</p>
-            <p class="text-xs text-text-light/60 dark:text-text-dark/60 text-center">N/A</p>
-          </div>
-        `;
-      }
-
-      const percentage = gauge.value;
-      let color = '#10b981'; // green
-      if (percentage > 100) color = '#ef4444'; // red
-      else if (percentage > 80) color = '#f59e0b'; // yellow
-
-      return `
-        <div class="flex flex-col items-center justify-start gap-1.5" style="width: 80px;">
-          <div class="radial-gauge">
-            ${this.createRadialGaugeSVG(percentage, color)}
-            <div class="radial-gauge-text">
-              <p class="text-sm font-bold" style="color: ${color}">${percentage.toFixed(0)}%</p>
-            </div>
-          </div>
-          <p class="text-xs font-medium text-text-light/70 dark:text-text-dark/70 text-center">${gauge.label}</p>
-          <p class="text-xs text-text-light/60 dark:text-text-dark/60 text-center break-words">${Utils.formatNumber(gauge.current)} / ${Utils.formatNumber(gauge.max)}</p>
-        </div>
-      `;
-    }).join('');
+    // Chart rendering removed - all information available in table
+    return;
   },
 
   /**
    * Create SVG for radial gauge
+   * DEPRECATED: Chart functionality removed to simplify UI
    */
   createRadialGaugeSVG(percentage, color) {
-    const radius = 32;
-    const circumference = 2 * Math.PI * radius;
-    const offset = circumference - (Math.min(percentage, 100) / 100) * circumference;
-
-    return `
-      <svg width="80" height="80" class="radial-gauge-circle">
-        <circle cx="40" cy="40" r="${radius}" stroke-width="6" class="radial-gauge-bg"></circle>
-        <circle cx="40" cy="40" r="${radius}" stroke-width="6"
-                class="radial-gauge-progress"
-                stroke="${color}"
-                stroke-dasharray="${circumference}"
-                stroke-dashoffset="${offset}"></circle>
-      </svg>
-    `;
+    // Chart rendering removed - all information available in table
+    return '';
   },
 
   /**
@@ -1846,7 +1673,6 @@ const App = {
     const maxThroughputDetailEl = document.getElementById('max-throughput-detail');
     const avgUtilizationEl = document.getElementById('avg-utilization');
     const avgUtilizationDetailEl = document.getElementById('avg-utilization-detail');
-    const chartContainer = document.getElementById('chart-bars');
     const tbody = document.getElementById('comparison-table-body');
 
     if (totalCostEl) totalCostEl.textContent = '$0.00';
@@ -1858,7 +1684,6 @@ const App = {
       avgUtilizationEl.className = 'text-2xl font-bold';
     }
     if (avgUtilizationDetailEl) avgUtilizationDetailEl.textContent = 'No models selected';
-    if (chartContainer) chartContainer.innerHTML = '<p class="text-text-light/60 dark:text-text-dark/60 text-sm">Select models to compare</p>';
     if (tbody) {
       tbody.innerHTML = `
         <tr>
@@ -1868,10 +1693,6 @@ const App = {
         </tr>
       `;
     }
-
-    // Show multi-model chart container by default
-    document.getElementById('multi-model-chart')?.classList.remove('hidden');
-    document.getElementById('single-model-chart')?.classList.add('hidden');
   },
 
   /**
