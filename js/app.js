@@ -5,6 +5,7 @@
 
 const App = {
   models: [],
+  customModels: [], // Array of user-created custom models
   selectedModels: [], // Array of selected model objects
   sharedConfig: {
     inputTokens: 5000,
@@ -53,11 +54,237 @@ const App = {
     try {
       const response = await fetch('data/models.csv');
       const csv = await response.text();
-      this.models = Utils.parseCSV(csv);
-      console.log(`Loaded ${this.models.length} models`);
+      const csvModels = Utils.parseCSV(csv);
+
+      // Load custom models from localStorage
+      this.loadCustomModels();
+
+      // Merge custom models with CSV models
+      this.models = [...csvModels, ...this.customModels];
+      console.log(`Loaded ${csvModels.length} CSV models and ${this.customModels.length} custom models`);
     } catch (error) {
       console.error('Error loading models:', error);
       throw error;
+    }
+  },
+
+  /**
+   * Load custom models from localStorage
+   */
+  loadCustomModels() {
+    try {
+      const stored = localStorage.getItem('customModels');
+      if (stored) {
+        this.customModels = JSON.parse(stored);
+        // Mark them as custom for UI purposes
+        this.customModels.forEach(model => {
+          model.isCustom = true;
+        });
+      } else {
+        this.customModels = [];
+      }
+    } catch (error) {
+      console.error('Error loading custom models:', error);
+      this.customModels = [];
+    }
+  },
+
+  /**
+   * Save custom models to localStorage
+   */
+  saveCustomModelsToStorage() {
+    try {
+      localStorage.setItem('customModels', JSON.stringify(this.customModels));
+    } catch (error) {
+      console.error('Error saving custom models:', error);
+      alert('Failed to save custom model. Storage may be full.');
+    }
+  },
+
+  /**
+   * Add a new custom model
+   */
+  addCustomModel(modelData) {
+    // Validate required fields
+    if (!modelData.provider || !modelData.model ||
+        modelData.input_price_per_1m === undefined ||
+        modelData.output_price_per_1m === undefined) {
+      throw new Error('Missing required fields');
+    }
+
+    // Mark as custom
+    modelData.isCustom = true;
+
+    // Add to custom models array
+    this.customModels.push(modelData);
+
+    // Save to localStorage
+    this.saveCustomModelsToStorage();
+
+    // Add to combined models array
+    this.models.push(modelData);
+
+    // Re-render model selector
+    this.renderModelSelector();
+
+    console.log('Added custom model:', modelData.model);
+  },
+
+  /**
+   * Update an existing custom model
+   */
+  updateCustomModel(originalModel, updatedData) {
+    // Find the model in customModels array
+    const index = this.customModels.findIndex(m =>
+      m.provider === originalModel.provider && m.model === originalModel.model
+    );
+
+    if (index === -1) {
+      throw new Error('Custom model not found');
+    }
+
+    // Update the model
+    updatedData.isCustom = true;
+    this.customModels[index] = updatedData;
+
+    // Save to localStorage
+    this.saveCustomModelsToStorage();
+
+    // Reload all models
+    this.reloadModels();
+
+    console.log('Updated custom model:', updatedData.model);
+  },
+
+  /**
+   * Delete a custom model
+   */
+  deleteCustomModel(model) {
+    // Remove from customModels array
+    this.customModels = this.customModels.filter(m =>
+      !(m.provider === model.provider && m.model === model.model)
+    );
+
+    // Save to localStorage
+    this.saveCustomModelsToStorage();
+
+    // Remove from selected models if it's selected
+    this.removeModelFromSelection(model.provider, model.model);
+
+    // Reload all models
+    this.reloadModels();
+
+    console.log('Deleted custom model:', model.model);
+  },
+
+  /**
+   * Reload models (merge CSV and custom models)
+   */
+  reloadModels() {
+    // Remove custom models from the models array
+    this.models = this.models.filter(m => !m.isCustom);
+
+    // Add custom models back
+    this.models = [...this.models, ...this.customModels];
+
+    // Re-render model selector
+    this.renderModelSelector();
+
+    // Update checkboxes
+    this.updateModelSelectorCheckboxes();
+  },
+
+  /**
+   * Open custom model modal for adding a new model
+   */
+  openCustomModelModal(editModel = null) {
+    const modal = document.getElementById('custom-model-modal');
+    const form = document.getElementById('custom-model-form');
+    const title = document.getElementById('custom-model-modal-title');
+
+    if (!modal || !form) return;
+
+    // Reset form
+    form.reset();
+
+    if (editModel) {
+      // Edit mode
+      title.textContent = 'Edit Custom Model';
+      document.getElementById('cm-provider').value = editModel.provider || '';
+      document.getElementById('cm-model').value = editModel.model || '';
+      document.getElementById('cm-context-window').value = editModel.context_window || 128000;
+      document.getElementById('cm-input-price').value = editModel.input_price_per_1m || 0;
+      document.getElementById('cm-output-price').value = editModel.output_price_per_1m || 0;
+      document.getElementById('cm-tpm-limit').value = editModel.tpm_limit || '';
+      document.getElementById('cm-rpm-limit').value = editModel.rpm_limit || '';
+      document.getElementById('cm-region').value = editModel.region || 'Global';
+
+      // Store original model for update
+      form.dataset.editProvider = editModel.provider;
+      form.dataset.editModel = editModel.model;
+    } else {
+      // Add mode
+      title.textContent = 'Add Custom Model';
+      delete form.dataset.editProvider;
+      delete form.dataset.editModel;
+    }
+
+    // Show modal
+    modal.classList.remove('hidden');
+  },
+
+  /**
+   * Close custom model modal
+   */
+  closeCustomModelModal() {
+    const modal = document.getElementById('custom-model-modal');
+    if (modal) {
+      modal.classList.add('hidden');
+    }
+  },
+
+  /**
+   * Handle custom model form submission
+   */
+  handleCustomModelSubmit(e) {
+    e.preventDefault();
+
+    const form = e.target;
+    const isEdit = form.dataset.editProvider && form.dataset.editModel;
+
+    // Gather form data
+    const modelData = {
+      provider: document.getElementById('cm-provider').value.trim(),
+      model: document.getElementById('cm-model').value.trim(),
+      context_window: parseInt(document.getElementById('cm-context-window').value) || 128000,
+      input_price_per_1m: parseFloat(document.getElementById('cm-input-price').value) || 0,
+      output_price_per_1m: parseFloat(document.getElementById('cm-output-price').value) || 0,
+      tpm_limit: parseInt(document.getElementById('cm-tpm-limit').value) || null,
+      rpm_limit: parseInt(document.getElementById('cm-rpm-limit').value) || null,
+      region: document.getElementById('cm-region').value.trim() || 'Global',
+      pricing_type: 'PAYG',
+      ptu_price_monthly: null
+    };
+
+    try {
+      if (isEdit) {
+        // Update existing model
+        const originalModel = {
+          provider: form.dataset.editProvider,
+          model: form.dataset.editModel
+        };
+        this.updateCustomModel(originalModel, modelData);
+        alert('Custom model updated successfully!');
+      } else {
+        // Add new model
+        this.addCustomModel(modelData);
+        alert('Custom model added successfully!');
+      }
+
+      // Close modal
+      this.closeCustomModelModal();
+    } catch (error) {
+      alert('Error saving custom model: ' + error.message);
     }
   },
 
@@ -95,6 +322,7 @@ const App = {
           </div>
           ${models.map(model => {
             const modelId = `${model.provider}-${model.model}`.replace(/[^a-zA-Z0-9-]/g, '-');
+            const isCustom = model.isCustom === true;
             return `
               <label class="model-option flex items-center gap-3 p-3 hover:bg-background-light dark:hover:bg-background-dark cursor-pointer transition-colors"
                      data-model-id="${modelId}">
@@ -103,11 +331,30 @@ const App = {
                        data-provider="${model.provider}"
                        data-model="${model.model}">
                 <div class="flex-1">
-                  <p class="text-sm font-medium">${model.model}</p>
+                  <div class="flex items-center gap-2">
+                    <p class="text-sm font-medium">${model.model}</p>
+                    ${isCustom ? '<span class="px-2 py-0.5 text-xs font-medium bg-primary/20 text-primary rounded">Custom</span>' : ''}
+                  </div>
                   <p class="text-xs text-text-light/60 dark:text-text-dark/60">
                     ${Utils.formatCurrency(model.input_price_per_1m)} / ${Utils.formatCurrency(model.output_price_per_1m)} per 1M tokens
                   </p>
                 </div>
+                ${isCustom ? `
+                  <div class="flex items-center gap-1">
+                    <button class="edit-custom-model-btn p-1.5 rounded hover:bg-primary/10 transition-colors"
+                            data-provider="${model.provider}"
+                            data-model="${model.model}"
+                            title="Edit custom model">
+                      <span class="material-symbols-outlined text-sm text-text-light/70 dark:text-text-dark/70">edit</span>
+                    </button>
+                    <button class="delete-custom-model-btn p-1.5 rounded hover:bg-red-500/10 transition-colors"
+                            data-provider="${model.provider}"
+                            data-model="${model.model}"
+                            title="Delete custom model">
+                      <span class="material-symbols-outlined text-sm text-red-600 dark:text-red-400">delete</span>
+                    </button>
+                  </div>
+                ` : ''}
               </label>
             `;
           }).join('')}
@@ -191,6 +438,62 @@ const App = {
    * Setup event listeners
    */
   setupEventListeners() {
+    // Custom model modal
+    document.getElementById('add-custom-model-btn')?.addEventListener('click', () => {
+      this.openCustomModelModal();
+    });
+
+    document.getElementById('custom-model-form')?.addEventListener('submit', (e) => {
+      this.handleCustomModelSubmit(e);
+    });
+
+    document.getElementById('close-custom-modal-btn')?.addEventListener('click', () => {
+      this.closeCustomModelModal();
+    });
+
+    document.getElementById('cancel-custom-modal-btn')?.addEventListener('click', () => {
+      this.closeCustomModelModal();
+    });
+
+    // Close modal on background click
+    document.getElementById('custom-model-modal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'custom-model-modal') {
+        this.closeCustomModelModal();
+      }
+    });
+
+    // Edit custom model buttons (delegated)
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('edit-custom-model-btn') || e.target.closest('.edit-custom-model-btn')) {
+        e.preventDefault();
+        e.stopPropagation();
+        const btn = e.target.classList.contains('edit-custom-model-btn') ? e.target : e.target.closest('.edit-custom-model-btn');
+        const provider = btn.dataset.provider;
+        const modelName = btn.dataset.model;
+        console.log('Edit button clicked:', provider, modelName);
+        const model = this.models.find(m => m.provider === provider && m.model === modelName);
+        if (model) {
+          this.openCustomModelModal(model);
+        }
+      }
+    });
+
+    // Delete custom model buttons (delegated)
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('delete-custom-model-btn') || e.target.closest('.delete-custom-model-btn')) {
+        e.preventDefault();
+        e.stopPropagation();
+        const btn = e.target.classList.contains('delete-custom-model-btn') ? e.target : e.target.closest('.delete-custom-model-btn');
+        const provider = btn.dataset.provider;
+        const modelName = btn.dataset.model;
+        console.log('Delete button clicked:', provider, modelName);
+        const model = this.models.find(m => m.provider === provider && m.model === modelName);
+        if (model && confirm(`Are you sure you want to delete the custom model "${model.model}"?`)) {
+          this.deleteCustomModel(model);
+        }
+      }
+    });
+
     // Reset button
     document.getElementById('reset-btn')?.addEventListener('click', () => {
       this.reset();
@@ -926,28 +1229,17 @@ const App = {
 
       let statusIcon = '';
       let statusColor = '';
-      let warningText = '';
 
       if (hasErrors) {
         statusIcon = 'error';
         statusColor = 'text-red-600 dark:text-red-400';
-        const errorMessages = result.validation.warnings
-          .filter(w => w.severity === 'error')
-          .map(w => w.message)
-          .join('\n');
-        warningText = errorMessages;
       } else if (hasWarnings) {
         statusIcon = 'warning';
         statusColor = 'text-yellow-600 dark:text-yellow-400';
-        const warningMessages = result.validation.warnings
-          .filter(w => w.severity === 'warning')
-          .map(w => w.message)
-          .join('\n');
-        warningText = warningMessages;
       }
 
       const statusIconHtml = (hasErrors || hasWarnings) ?
-        `<span class="material-symbols-outlined text-base ${statusColor} warning-tooltip" data-warning="${warningText}">${statusIcon}</span>` : '';
+        `<span class="material-symbols-outlined text-base ${statusColor}">${statusIcon}</span>` : '';
 
       // Calculate quota usage
       const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
