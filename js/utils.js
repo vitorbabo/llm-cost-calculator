@@ -110,11 +110,16 @@ const Utils = {
   },
 
   /**
-   * Format large numbers with K suffix for thousands
+   * Format large numbers with K/M suffix for thousands/millions
    * @param {number} num - Number to format
-   * @returns {string} Formatted number (e.g., 450000 -> "450K", 1500 -> "1.5K")
+   * @returns {string} Formatted number (e.g., 1500000 -> "1.5M", 450000 -> "450K", 1500 -> "1.5K")
    */
   formatCompactNumber(num) {
+    if (num >= 1000000) {
+      const millions = num / 1000000;
+      // Remove decimal if it's .0
+      return millions % 1 === 0 ? `${millions}M` : `${millions.toFixed(1)}M`;
+    }
     if (num >= 1000) {
       const thousands = num / 1000;
       // Remove decimal if it's .0

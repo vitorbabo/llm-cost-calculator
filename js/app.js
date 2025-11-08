@@ -967,18 +967,24 @@ const App = {
               <span class="model-tooltip" data-provider="${result.model.provider}">${result.model.model}</span>
             </div>
           </th>
-          <td class="px-6 py-4 ${opacity}">
-            ${Utils.formatCurrency(result.model.input_price_per_1m)} / ${Utils.formatCurrency(result.model.output_price_per_1m)}
+          <td class="px-6 py-4 text-right ${opacity}">
+            ${Utils.formatCurrency(result.model.input_price_per_1m)}
           </td>
-          <td class="px-6 py-4 ${opacity}">
-            ${Utils.formatNumber(result.totalCost.totalInputTokens)} / ${Utils.formatNumber(result.totalCost.totalOutputTokens)}
+          <td class="px-6 py-4 text-right ${opacity}">
+            ${Utils.formatCurrency(result.model.output_price_per_1m)}
+          </td>
+          <td class="px-6 py-4 text-right ${opacity}">
+            ${Utils.formatCompactNumber(result.totalCost.totalInputTokens)}
+          </td>
+          <td class="px-6 py-4 text-right ${opacity}">
+            ${Utils.formatCompactNumber(result.totalCost.totalOutputTokens)}
           </td>
           <td class="px-6 py-4 text-right font-medium ${opacity}">
             ${isEnabled ? Utils.formatCurrency(result.totalCost.totalCost) : '-'}
           </td>
         </tr>
         <tr id="${rowId}-expanded" class="border-b border-border-light dark:border-border-dark">
-          <td colspan="4" class="p-0">
+          <td colspan="6" class="p-0">
             <div class="expanded-content" id="${rowId}-content">
               ${expandedContent}
             </div>
@@ -1068,6 +1074,10 @@ const App = {
                 <span class="font-medium">${result.totalCost.totalOutputTokens.toLocaleString()} tokens × ${Utils.formatCurrency(result.model.output_price_per_1m)}/1M = ${Utils.formatCurrency(result.totalCost.totalOutputCost)}</span>
               </div>
               <div class="flex justify-between pt-2 border-t border-border-light dark:border-border-dark">
+                <span class="text-text-light/70 dark:text-text-dark/70">Price per Call:</span>
+                <span class="font-medium">${Utils.formatCurrency(result.totalCost.costPerRequest)}</span>
+              </div>
+              <div class="flex justify-between">
                 <span class="text-text-light/70 dark:text-text-dark/70">Cost per 1K Requests:</span>
                 <span class="font-medium">${Utils.formatCurrency(costPer1k)}</span>
               </div>
