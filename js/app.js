@@ -727,8 +727,8 @@ const App = {
 
         // Simple CSS-based pie chart using conic gradient
         pieContainer.innerHTML = `
-          <div class="flex flex-col items-center justify-start gap-2">
-            <div class="relative w-24 h-24">
+          <div class="flex items-center justify-center gap-4">
+            <div class="relative w-24 h-24 flex-shrink-0">
               <div class="w-full h-full rounded-full" style="background: conic-gradient(
                 #ffa500 0% ${inputPercent}%,
                 #ffa50050 ${inputPercent}% 100%
@@ -737,7 +737,7 @@ const App = {
                 <div class="w-16 h-16 rounded-full bg-surface-light dark:bg-surface-dark"></div>
               </div>
             </div>
-            <div class="flex flex-col gap-1.5 w-full">
+            <div class="flex flex-col gap-2">
               <div class="flex items-center gap-2">
                 <div class="w-3 h-3 rounded-sm bg-primary flex-shrink-0"></div>
                 <div class="flex-1 min-w-0">
