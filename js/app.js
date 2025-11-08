@@ -1581,7 +1581,11 @@ const App = {
         }
       }
     } else {
-      calculationBasis = `${result.totalCost.rpm} RPM × ${result.totalCost.duration} = ${Utils.formatNumber(result.totalCost.totalRequests)} requests`;
+      // For duration mode, show days if it's a month calculation
+      const durationDisplay = result.totalCost.duration === 'month'
+        ? `${result.totalCost.duration} (${this.sharedConfig.daysPerMonth} days)`
+        : result.totalCost.duration;
+      calculationBasis = `${result.totalCost.rpm} RPM × ${durationDisplay} = ${Utils.formatNumber(result.totalCost.totalRequests)} requests`;
     }
 
     return `
