@@ -225,50 +225,14 @@
               <input type="range" id="shared-requests-slider" value="1000" min="1" max="10000000" step="1000" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
             </div>
           </div>
-        </div>
 
-        <!-- Model Comparison Panel -->
-        <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
-          <div class="flex items-center gap-2 mb-4">
-            <span class="material-symbols-outlined text-primary">compare_arrows</span>
-            <h3 class="font-bold text-lg">Model Comparison</h3>
-          </div>
-          <p class="text-xs text-text-light/60 dark:text-text-dark/60 mb-4">Select multiple models to compare (you can choose multiple models from the same provider)</p>
-
-          <!-- Model Search/Filter -->
-          <div class="mb-4">
-            <div class="relative">
-              <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-light/40 dark:text-text-dark/40 text-lg">search</span>
-              <input type="text" id="model-search" placeholder="Search models..." class="w-full pl-10 pr-3 py-2 text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
-            </div>
-          </div>
-
-          <!-- Selected Models Display -->
-          <div id="selected-models" class="mb-4 flex flex-wrap gap-2 min-h-[2.5rem] p-2 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark">
-            <p class="text-xs text-text-light/60 dark:text-text-dark/60 m-auto">No models selected</p>
-          </div>
-
-          <!-- Model Selection Dropdown/List -->
-          <div id="model-selector" class="max-h-80 overflow-y-auto border border-border-light dark:border-border-dark rounded-lg bg-background-light dark:bg-background-dark">
-            <!-- Models will be populated here grouped by provider -->
-          </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="flex gap-4">
-          <button id="reset-btn" class="w-full bg-border-light dark:bg-border-dark hover:bg-border-light/70 dark:hover:bg-border-dark/70 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors">
-            Reset
-          </button>
-        </div>
-
-        <!-- Additional Settings -->
-        <div class="mt-4">
-          <button id="advanced-toggle" class="flex items-center gap-2 text-sm text-text-light/70 dark:text-text-dark/70 hover:text-text-light dark:hover:text-text-dark transition-colors">
-            <span class="material-symbols-outlined text-lg">tune</span>
-            <span>Additional Settings</span>
-          </button>
-          <div id="advanced-panel" class="hidden mt-4 p-4 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
-            <div class="space-y-4">
+          <!-- Additional Settings -->
+          <div class="mt-6 pt-6 border-t border-border-light dark:border-border-dark">
+            <button id="advanced-toggle" class="flex items-center gap-2 text-sm text-text-light/70 dark:text-text-dark/70 hover:text-text-light dark:hover:text-text-dark transition-colors">
+              <span class="material-symbols-outlined text-lg">tune</span>
+              <span>Additional Settings</span>
+            </button>
+            <div id="advanced-panel" class="hidden mt-4 space-y-4">
               <!-- Timeframe Selector -->
               <div class="flex flex-col gap-2">
                 <label class="flex flex-col gap-2">
@@ -330,6 +294,40 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Model Comparison Panel -->
+        <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="material-symbols-outlined text-primary">compare_arrows</span>
+            <h3 class="font-bold text-lg">Model Comparison</h3>
+          </div>
+          <p class="text-xs text-text-light/60 dark:text-text-dark/60 mb-4">Select multiple models to compare (you can choose multiple models from the same provider)</p>
+
+          <!-- Model Search/Filter -->
+          <div class="mb-4">
+            <div class="relative">
+              <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-light/40 dark:text-text-dark/40 text-lg">search</span>
+              <input type="text" id="model-search" placeholder="Search models..." class="w-full pl-10 pr-3 py-2 text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
+            </div>
+          </div>
+
+          <!-- Selected Models Display -->
+          <div id="selected-models" class="mb-4 flex flex-wrap gap-2 min-h-[2.5rem] p-2 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark">
+            <p class="text-xs text-text-light/60 dark:text-text-dark/60 m-auto">No models selected</p>
+          </div>
+
+          <!-- Model Selection Dropdown/List -->
+          <div id="model-selector" class="max-h-80 overflow-y-auto border border-border-light dark:border-border-dark rounded-lg bg-background-light dark:bg-background-dark">
+            <!-- Models will be populated here grouped by provider -->
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-4">
+          <button id="reset-btn" class="w-full bg-border-light dark:bg-border-dark hover:bg-border-light/70 dark:hover:bg-border-dark/70 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors">
+            Reset
+          </button>
         </div>
       </div>
 
