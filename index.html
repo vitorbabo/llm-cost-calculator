@@ -209,37 +209,44 @@
               <input type="range" id="shared-output-slider" value="1500" min="1" max="10000" step="1" aria-label="Average Output Tokens slider" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
             </div>
 
-            <!-- Requests Per Day -->
-            <div class="flex flex-col gap-2">
-              <label class="flex items-center justify-between">
-                <span class="text-sm font-medium">Requests Per Day</span>
-                <input type="number" id="shared-requests-per-day" value="100" min="1" max="1000000" step="1" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
-              </label>
-              <input type="range" id="shared-requests-per-day-slider" value="100" min="1" max="10000" step="1" aria-label="Requests Per Day slider" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
-              <p class="text-xs text-text-light/60 dark:text-text-dark/60">
-                <span id="rpm-display">~0.07 RPM</span> • For throughput validation (max: <span id="rpm-limit-display">250</span> RPM)
-              </p>
-            </div>
-
             <!-- Cost Calculation Mode -->
-            <div class="flex flex-col gap-3 pt-3 border-t border-border-light/50 dark:border-border-dark/50">
+            <div class="flex flex-col gap-4 pt-3 border-t border-border-light/50 dark:border-border-dark/50">
               <label class="text-sm font-medium">Calculate cost for:</label>
 
               <!-- Duration Mode -->
               <div class="flex items-start gap-3">
                 <input type="radio" id="calc-mode-duration" name="calc-mode" value="duration" checked class="mt-1 accent-primary"/>
-                <div class="flex-1 flex flex-col gap-2">
+                <div class="flex-1 flex flex-col gap-3">
                   <label for="calc-mode-duration" class="text-sm cursor-pointer">
                     <span class="font-medium">Duration</span>
-                    <span class="text-text-light/60 dark:text-text-dark/60"> - Cost for RPM over time</span>
+                    <span class="text-text-light/60 dark:text-text-dark/60"> - Cost over time period</span>
                   </label>
-                  <select id="duration-select" aria-label="Duration for cost calculation" class="form-select w-full text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary">
-                    <option value="hour">Per Hour</option>
-                    <option value="day" selected>Per Day</option>
-                    <option value="month">Per Month</option>
-                  </select>
+
+                  <!-- Time Period Selector -->
+                  <div>
+                    <label class="block text-xs font-medium text-text-light/70 dark:text-text-dark/70 mb-1">Time Period</label>
+                    <select id="duration-select" aria-label="Duration for cost calculation" class="form-select w-full text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary">
+                      <option value="hour">Per Hour</option>
+                      <option value="day" selected>Per Day</option>
+                      <option value="month">Per Month</option>
+                    </select>
+                  </div>
+
+                  <!-- Dynamic Requests Input -->
+                  <div class="flex flex-col gap-2">
+                    <label class="flex items-center justify-between">
+                      <span class="text-xs font-medium text-text-light/70 dark:text-text-dark/70" id="requests-label">Requests Per Day</span>
+                      <input type="number" id="shared-requests-per-day" value="100" min="1" max="1000000" step="1" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
+                    </label>
+                    <input type="range" id="shared-requests-per-day-slider" value="100" min="1" max="10000" step="1" aria-label="Requests slider" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
+                    <p class="text-xs text-text-light/60 dark:text-text-dark/60">
+                      <span id="rpm-display">~0.07 RPM</span> • For throughput validation (max: <span id="rpm-limit-display">250</span> RPM)
+                    </p>
+                  </div>
+
+                  <!-- Active Days per Month (only for month duration) -->
                   <div id="days-per-month-container" class="hidden">
-                    <label class="flex items-center justify-between mt-2">
+                    <label class="flex items-center justify-between">
                       <span class="text-xs font-medium text-text-light/70 dark:text-text-dark/70">Active Days per Month</span>
                       <input type="number" id="days-per-month" value="30" min="1" max="31" class="w-20 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
                     </label>

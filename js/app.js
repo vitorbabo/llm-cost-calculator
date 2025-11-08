@@ -46,6 +46,7 @@ const App = {
       this.setupEventListeners();
       this.updateDynamicLimits(); // Set initial dynamic limits
       this.toggleDaysPerMonthField(); // Initialize days per month field visibility
+      this.updateRequestsLabel(); // Initialize requests label based on duration
       this.selectPreset('custom'); // Mark custom as initially selected
       this.updateRPMDisplay(); // Initialize RPM display
       this.togglePresetsCollapsed(); // Initialize collapsed state
@@ -831,8 +832,7 @@ const App = {
         sharedRequestsPerDaySlider.value = value;
       }
       this.sharedConfig.requestsPerDay = value;
-      this.sharedConfig.rpm = value / 1440; // Convert to RPM (1440 minutes per day)
-      this.updateRPMDisplay();
+      this.updateRPMFromRequests(); // Convert to RPM based on duration
       this.selectPreset('custom'); // Switch to custom when user manually changes
       this.updateRuntimeEstimate();
       this.calculate();
@@ -844,8 +844,7 @@ const App = {
         sharedRequestsPerDay.value = value;
       }
       this.sharedConfig.requestsPerDay = value;
-      this.sharedConfig.rpm = value / 1440; // Convert to RPM (1440 minutes per day)
-      this.updateRPMDisplay();
+      this.updateRPMFromRequests(); // Convert to RPM based on duration
       this.selectPreset('custom'); // Switch to custom when user manually changes
       this.updateRuntimeEstimate();
       this.calculate();
@@ -876,7 +875,9 @@ const App = {
     // Duration selector
     document.getElementById('duration-select')?.addEventListener('change', (e) => {
       this.sharedConfig.duration = e.target.value;
+      this.updateRequestsLabel(); // Update label to match duration
       this.toggleDaysPerMonthField();
+      this.updateRPMFromRequests(); // Recalculate RPM with new duration
       this.calculate();
     });
 
@@ -884,6 +885,7 @@ const App = {
     document.getElementById('days-per-month')?.addEventListener('input', (e) => {
       const value = parseInt(e.target.value) || 1;
       this.sharedConfig.daysPerMonth = Math.max(1, Math.min(31, value));
+      this.updateRPMFromRequests(); // Recalculate RPM with new days per month
       this.calculate();
     });
 
@@ -997,7 +999,6 @@ const App = {
     this.sharedConfig.inputTokens = inputTokens;
     this.sharedConfig.outputTokens = outputTokens;
     this.sharedConfig.requestsPerDay = requestsPerDay;
-    this.sharedConfig.rpm = requestsPerDay / 1440; // Convert to RPM
     this.sharedConfig.duration = duration;
     this.sharedConfig.calcMode = 'duration';
     this.sharedConfig.selectedPreset = presetName;
@@ -1016,11 +1017,10 @@ const App = {
     document.getElementById('total-requests-input')?.setAttribute('disabled', 'disabled');
     document.getElementById('duration-select')?.removeAttribute('disabled');
 
-    // Toggle days per month field visibility
+    // Update UI based on duration
+    this.updateRequestsLabel();
     this.toggleDaysPerMonthField();
-
-    // Update RPM display
-    this.updateRPMDisplay();
+    this.updateRPMFromRequests(); // Convert to RPM based on duration
 
     // Update preset selection visual state
     this.selectPreset(presetName);
@@ -1078,6 +1078,51 @@ const App = {
         daysPerMonthContainer.classList.add('hidden');
       }
     }
+  },
+
+  /**
+   * Update requests input label based on selected duration
+   */
+  updateRequestsLabel() {
+    const requestsLabel = document.getElementById('requests-label');
+    if (!requestsLabel) return;
+
+    const duration = this.sharedConfig.duration;
+    const labelMap = {
+      'hour': 'Requests Per Hour',
+      'day': 'Requests Per Day',
+      'month': 'Requests Per Month'
+    };
+
+    requestsLabel.textContent = labelMap[duration] || 'Requests';
+  },
+
+  /**
+   * Convert requests to RPM based on duration
+   */
+  convertRequestsToRPM(requests, duration, daysPerMonth = 30) {
+    switch (duration) {
+      case 'hour':
+        return requests / 60;
+      case 'day':
+        return requests / 1440; // 60 * 24
+      case 'month':
+        return requests / (daysPerMonth * 1440); // requests per month / (days * minutes per day)
+      default:
+        return requests / 1440;
+    }
+  },
+
+  /**
+   * Update RPM based on current requests and duration
+   */
+  updateRPMFromRequests() {
+    this.sharedConfig.rpm = this.convertRequestsToRPM(
+      this.sharedConfig.requestsPerDay, // This is actually "requests per [period]" now
+      this.sharedConfig.duration,
+      this.sharedConfig.daysPerMonth
+    );
+    this.updateRPMDisplay();
   },
 
   /**
@@ -1891,6 +1936,7 @@ const App = {
 
     // Reset preset selection and days per month visibility
     this.selectPreset('custom');
+    this.updateRequestsLabel();
     this.toggleDaysPerMonthField();
     this.togglePresetsCollapsed();
 
