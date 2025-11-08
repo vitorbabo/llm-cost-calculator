@@ -686,18 +686,24 @@ const App = {
       const maxUsage = Math.max(contextUsage, rpmUsage, tpmUsage);
 
       return `
-        <div class="flex flex-col items-center gap-2 flex-1 h-full justify-end">
-          <span class="material-symbols-outlined text-lg ${quotaColor}" title="Quota status">${quotaIcon}</span>
-          <div class="w-full ${isFirst ? 'bg-primary' : 'bg-primary/30'} rounded-t-md transition-all duration-300 relative"
-               style="height: ${heightPercent}%"
-               title="${result.model.model}: ${Utils.formatCurrency(result.totalCost.totalCost)} | Quota: ${maxUsage.toFixed(0)}%">
-            ${maxUsage > 0 ? `
-              <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-t from-${hasErrors ? 'red' : hasWarnings ? 'yellow' : 'green'}-500/50 to-transparent"></div>
-            ` : ''}
+        <div class="flex flex-col items-center flex-1 h-full" style="min-width: 60px;">
+          <div class="flex flex-col items-center gap-1 mb-2">
+            <span class="material-symbols-outlined text-base ${quotaColor}" title="Quota status">${quotaIcon}</span>
+            <p class="text-xs ${quotaColor} h-4">${maxUsage > 0 ? `${maxUsage.toFixed(0)}%` : ''}</p>
           </div>
-          <p class="text-xs text-text-light/70 dark:text-text-dark/70 text-center truncate w-full px-1">${result.model.model}</p>
-          <p class="text-xs font-medium">${Utils.formatCurrency(result.totalCost.totalCost)}</p>
-          ${maxUsage > 0 ? `<p class="text-xs ${quotaColor}">${maxUsage.toFixed(0)}%</p>` : ''}
+          <div class="flex-1 w-full flex flex-col justify-end">
+            <div class="w-full ${isFirst ? 'bg-primary' : 'bg-primary/30'} rounded-t-md transition-all duration-300 relative"
+                 style="height: ${heightPercent}%"
+                 title="${result.model.model}: ${Utils.formatCurrency(result.totalCost.totalCost)} | Quota: ${maxUsage.toFixed(0)}%">
+              ${maxUsage > 0 ? `
+                <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-t from-${hasErrors ? 'red' : hasWarnings ? 'yellow' : 'green'}-500/50 to-transparent"></div>
+              ` : ''}
+            </div>
+          </div>
+          <div class="flex flex-col items-center gap-0.5 mt-2">
+            <p class="text-xs text-text-light/70 dark:text-text-dark/70 text-center truncate w-full px-1">${result.model.model}</p>
+            <p class="text-xs font-medium">${Utils.formatCurrency(result.totalCost.totalCost)}</p>
+          </div>
         </div>
       `;
     }).join('');
