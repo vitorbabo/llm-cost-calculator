@@ -1067,22 +1067,6 @@ const App = {
             </div>
           </div>
         </div>
-
-        <!-- Warnings -->
-        ${result.validation.warnings.length > 0 ? `
-          <div class="mt-4 pt-4 border-t border-border-light dark:border-border-dark">
-            <h4 class="font-semibold text-sm mb-2 text-red-600 dark:text-red-400 flex items-center gap-1">
-              <span class="material-symbols-outlined text-base">warning</span> Warnings & Errors
-            </h4>
-            <ul class="space-y-1 text-sm">
-              ${result.validation.warnings.map(w => `
-                <li class="${w.severity === 'error' ? 'text-red-600 dark:text-red-400' : 'text-yellow-600 dark:text-yellow-400'}">
-                  • ${w.message}
-                </li>
-              `).join('')}
-            </ul>
-          </div>
-        ` : ''}
       </div>
     `;
   },
