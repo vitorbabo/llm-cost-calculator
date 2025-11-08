@@ -191,9 +191,15 @@
 
         <!-- Model Selection Panel -->
         <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
-          <div class="flex items-center gap-2 mb-4">
-            <span class="material-symbols-outlined text-primary">compare_arrows</span>
-            <h3 class="font-bold text-lg">Model Selection</h3>
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary">compare_arrows</span>
+              <h3 class="font-bold text-lg">Model Selection</h3>
+            </div>
+            <button id="add-custom-model-btn" class="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors" title="Add custom model with your own pricing">
+              <span class="material-symbols-outlined text-sm">add</span>
+              <span>Custom Model</span>
+            </button>
           </div>
           <p class="text-xs text-text-light/60 dark:text-text-dark/60 mb-4">Select multiple models to compare (you can choose multiple models from the same provider)</p>
 
@@ -326,6 +332,127 @@
     <p>LLM Cost Calculator</p>
     <p class="mt-2 text-xs">Prices are approximate and may vary. Check provider for current pricing.</p>
   </footer>
+</div>
+
+<!-- Custom Model Modal -->
+<div id="custom-model-modal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-surface-light dark:bg-surface-dark rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between p-6 border-b border-border-light dark:border-border-dark sticky top-0 bg-surface-light dark:bg-surface-dark z-10">
+      <h3 id="custom-model-modal-title" class="text-xl font-bold">Add Custom Model</h3>
+      <button id="close-custom-modal-btn" class="p-2 rounded-lg hover:bg-background-light dark:hover:bg-background-dark transition-colors">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <!-- Modal Body -->
+    <form id="custom-model-form" class="p-6 space-y-6">
+      <!-- Basic Information -->
+      <div class="space-y-4">
+        <h4 class="font-semibold text-sm text-primary">Basic Information</h4>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="cm-provider" class="block text-sm font-medium mb-2">
+              Provider Name <span class="text-red-500">*</span>
+            </label>
+            <input type="text" id="cm-provider" required
+                   class="w-full px-3 py-2 text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"
+                   placeholder="e.g., OpenAI, Anthropic, Custom Provider">
+          </div>
+
+          <div>
+            <label for="cm-model" class="block text-sm font-medium mb-2">
+              Model Name <span class="text-red-500">*</span>
+            </label>
+            <input type="text" id="cm-model" required
+                   class="w-full px-3 py-2 text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"
+                   placeholder="e.g., GPT-4, Claude-3">
+          </div>
+        </div>
+
+        <div>
+          <label for="cm-region" class="block text-sm font-medium mb-2">
+            Region
+          </label>
+          <input type="text" id="cm-region" value="Global"
+                 class="w-full px-3 py-2 text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"
+                 placeholder="e.g., Global, US-East, EU-West">
+        </div>
+      </div>
+
+      <!-- Pricing Information -->
+      <div class="space-y-4">
+        <h4 class="font-semibold text-sm text-primary">Pricing (USD)</h4>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="cm-input-price" class="block text-sm font-medium mb-2">
+              Input Price per 1M Tokens <span class="text-red-500">*</span>
+            </label>
+            <input type="number" id="cm-input-price" required min="0" step="0.01"
+                   class="w-full px-3 py-2 text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"
+                   placeholder="e.g., 5.00">
+          </div>
+
+          <div>
+            <label for="cm-output-price" class="block text-sm font-medium mb-2">
+              Output Price per 1M Tokens <span class="text-red-500">*</span>
+            </label>
+            <input type="number" id="cm-output-price" required min="0" step="0.01"
+                   class="w-full px-3 py-2 text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"
+                   placeholder="e.g., 15.00">
+          </div>
+        </div>
+      </div>
+
+      <!-- Technical Specifications -->
+      <div class="space-y-4">
+        <h4 class="font-semibold text-sm text-primary">Technical Specifications</h4>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label for="cm-context-window" class="block text-sm font-medium mb-2">
+              Context Window (tokens)
+            </label>
+            <input type="number" id="cm-context-window" min="1" step="1" value="128000"
+                   class="w-full px-3 py-2 text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"
+                   placeholder="e.g., 128000">
+          </div>
+
+          <div>
+            <label for="cm-rpm-limit" class="block text-sm font-medium mb-2">
+              RPM Limit
+            </label>
+            <input type="number" id="cm-rpm-limit" min="0" step="1"
+                   class="w-full px-3 py-2 text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"
+                   placeholder="e.g., 500">
+            <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-1">Leave empty if no limit</p>
+          </div>
+
+          <div>
+            <label for="cm-tpm-limit" class="block text-sm font-medium mb-2">
+              TPM Limit
+            </label>
+            <input type="number" id="cm-tpm-limit" min="0" step="1"
+                   class="w-full px-3 py-2 text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"
+                   placeholder="e.g., 100000">
+            <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-1">Leave empty if no limit</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form Actions -->
+      <div class="flex items-center justify-end gap-3 pt-4 border-t border-border-light dark:border-border-dark">
+        <button type="button" id="cancel-custom-modal-btn" class="px-4 py-2 text-sm font-medium rounded-lg bg-border-light dark:bg-border-dark hover:bg-border-light/70 dark:hover:bg-border-dark/70 transition-colors">
+          Cancel
+        </button>
+        <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors">
+          Save Model
+        </button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <!-- Load JavaScript modules -->
