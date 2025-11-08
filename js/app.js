@@ -7,11 +7,13 @@ const App = {
   models: [],
   selectedModels: [], // Array of selected model objects
   sharedConfig: {
-    inputTokens: 500,
+    inputTokens: 5000,
     outputTokens: 1500,
-    requests: 10
+    rpm: 20, // Requests per minute
+    calcMode: 'duration', // 'duration' or 'total'
+    duration: 'day', // 'hour', 'day', or 'month'
+    totalRequests: 100 // For 'total' mode
   },
-  currentTimeframe: 'minute',
   globalInputUnit: 'tokens',
   globalOutputUnit: 'tokens',
 
@@ -28,8 +30,8 @@ const App = {
       // Setup UI components
       this.setupDarkMode();
       this.renderModelSelector();
-      this.updateRequestsLabels(); // Set initial request labels based on default timeframe
       this.setupEventListeners();
+      this.updateDynamicLimits(); // Set initial dynamic limits
 
       // Initialize with default model selection
       const gpt4o = this.models.find(m => m.model === 'GPT-5');
@@ -128,6 +130,7 @@ const App = {
     this.selectedModels.push(model);
     this.updateSelectedModelsDisplay();
     this.updateModelSelectorCheckboxes();
+    this.updateDynamicLimits(); // Update limits based on new selection
     this.calculate();
   },
 
@@ -140,6 +143,7 @@ const App = {
     );
     this.updateSelectedModelsDisplay();
     this.updateModelSelectorCheckboxes();
+    this.updateDynamicLimits(); // Update limits based on new selection
     this.calculate();
   },
 
@@ -192,13 +196,6 @@ const App = {
       this.reset();
     });
 
-    // Timeframe selector
-    document.getElementById('timeframe-select')?.addEventListener('change', (e) => {
-      this.currentTimeframe = e.target.value;
-      this.updateRequestsLabels();
-      this.calculate();
-    });
-
     // Shared input tokens
     const sharedInputTokens = document.getElementById('shared-input-tokens');
     const sharedInputSlider = document.getElementById('shared-input-slider');
@@ -243,47 +240,81 @@ const App = {
       this.calculate();
     });
 
-    // Shared requests
-    const sharedRequests = document.getElementById('shared-requests');
-    const sharedRequestsSlider = document.getElementById('shared-requests-slider');
+    // RPM (Requests Per Minute)
+    const sharedRpm = document.getElementById('shared-rpm');
+    const sharedRpmSlider = document.getElementById('shared-rpm-slider');
 
-    sharedRequests?.addEventListener('input', (e) => {
+    sharedRpm?.addEventListener('input', (e) => {
       const value = parseInt(e.target.value) || 1;
-      if (sharedRequestsSlider) {
-        sharedRequestsSlider.value = value;
+      if (sharedRpmSlider) {
+        sharedRpmSlider.value = value;
       }
-      this.sharedConfig.requests = value;
+      this.sharedConfig.rpm = value;
+      this.updateRuntimeEstimate();
       this.calculate();
     });
 
-    sharedRequestsSlider?.addEventListener('input', (e) => {
+    sharedRpmSlider?.addEventListener('input', (e) => {
       const value = parseInt(e.target.value) || 1;
-      if (sharedRequests) {
-        sharedRequests.value = value;
+      if (sharedRpm) {
+        sharedRpm.value = value;
       }
-      this.sharedConfig.requests = value;
+      this.sharedConfig.rpm = value;
+      this.updateRuntimeEstimate();
       this.calculate();
     });
 
-    // Preset buttons
+    // Calculation mode radio buttons
+    document.querySelectorAll('input[name="calc-mode"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        this.sharedConfig.calcMode = e.target.value;
+
+        // Enable/disable total requests input based on mode
+        const totalRequestsInput = document.getElementById('total-requests-input');
+        const durationSelect = document.getElementById('duration-select');
+
+        if (e.target.value === 'total') {
+          totalRequestsInput?.removeAttribute('disabled');
+          durationSelect?.setAttribute('disabled', 'disabled');
+        } else {
+          totalRequestsInput?.setAttribute('disabled', 'disabled');
+          durationSelect?.removeAttribute('disabled');
+        }
+
+        this.updateRuntimeEstimate();
+        this.calculate();
+      });
+    });
+
+    // Duration selector
+    document.getElementById('duration-select')?.addEventListener('change', (e) => {
+      this.sharedConfig.duration = e.target.value;
+      this.calculate();
+    });
+
+    // Total requests input
+    document.getElementById('total-requests-input')?.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value) || 1;
+      this.sharedConfig.totalRequests = value;
+      this.updateRuntimeEstimate();
+      this.calculate();
+    });
+
+    // Preset buttons (if any exist)
     document.addEventListener('click', (e) => {
       if (e.target.classList.contains('preset-btn') || e.target.closest('.preset-btn')) {
         const btn = e.target.classList.contains('preset-btn') ? e.target : e.target.closest('.preset-btn');
         const inputTokens = parseInt(btn.dataset.input);
         const outputTokens = parseInt(btn.dataset.output);
-        const requests = parseInt(btn.dataset.requests);
 
         this.sharedConfig.inputTokens = inputTokens;
         this.sharedConfig.outputTokens = outputTokens;
-        this.sharedConfig.requests = requests;
 
         // Update UI
         document.getElementById('shared-input-tokens').value = inputTokens;
         document.getElementById('shared-input-slider').value = inputTokens;
         document.getElementById('shared-output-tokens').value = outputTokens;
         document.getElementById('shared-output-slider').value = outputTokens;
-        document.getElementById('shared-requests').value = requests;
-        document.getElementById('shared-requests-slider').value = requests;
 
         this.calculate();
       }
@@ -350,70 +381,96 @@ const App = {
 
 
   /**
-   * Update requests field labels and slider range based on timeframe
+   * Update runtime estimate for total requests mode
    */
-  updateRequestsLabels() {
-    const label = document.getElementById('requests-label');
-    const slider = document.getElementById('shared-requests-slider');
-    const input = document.getElementById('shared-requests');
+  updateRuntimeEstimate() {
+    const estimateEl = document.getElementById('runtime-estimate');
+    if (!estimateEl) return;
 
-    if (!label) return;
+    if (this.sharedConfig.calcMode === 'total') {
+      const runtime = this.sharedConfig.totalRequests / this.sharedConfig.rpm;
+      const hours = Math.floor(runtime / 60);
+      const minutes = Math.floor(runtime % 60);
 
-    let labelText = 'Requests per Minute';
-    let maxValue = 1000;
-    let step = 1;
-    let suggestedDefault = 10;
+      let runtimeText = '';
+      if (hours > 0) {
+        runtimeText = `Runtime: ~${hours}h ${minutes}m at ${this.sharedConfig.rpm} RPM`;
+      } else {
+        runtimeText = `Runtime: ~${minutes} minutes at ${this.sharedConfig.rpm} RPM`;
+      }
 
-    switch (this.currentTimeframe) {
-      case 'minute':
-        labelText = 'Requests per Minute';
-        maxValue = 99999;
-        step = 1;
-        suggestedDefault = 100;
-        break;
-      case 'hour':
-        labelText = 'Requests per Hour';
-        maxValue = 99999;
-        step = 1;
-        suggestedDefault = 1000;
-        break;
-      case 'day':
-        labelText = 'Requests per Day';
-        maxValue = 99999;
-        step = 1;
-        suggestedDefault = 10000;
-        break;
-      case 'month':
-        labelText = 'Requests per Month';
-        maxValue = 99999;
-        step = 1;
-        suggestedDefault = 100;
-        break;
-      case 'total':
-        labelText = 'Total Requests';
-        maxValue = 99999;
-        step = 1;
-        suggestedDefault = 1000;
-        break;
+      estimateEl.textContent = runtimeText;
+    }
+  },
+
+  /**
+   * Update dynamic limits based on selected models
+   */
+  updateDynamicLimits() {
+    if (this.selectedModels.length === 0) {
+      // Default limits when no models selected
+      this.updateTokenLimit(10000);
+      this.updateRpmLimit(250);
+      return;
     }
 
-    label.textContent = labelText;
+    // Find minimum context window (for token limit)
+    const minContextWindow = Math.min(...this.selectedModels.map(m => m.context_window));
+    this.updateTokenLimit(minContextWindow);
 
-    // Update slider attributes
-    if (slider) {
-      slider.max = maxValue;
-      slider.step = step;
+    // Find minimum RPM limit
+    const minRpm = Math.min(...this.selectedModels.map(m => m.rpm_limit || 250));
+    this.updateRpmLimit(minRpm);
+  },
 
-      // Adjust current value if it exceeds new max
-      const currentValue = parseInt(input?.value) || suggestedDefault;
-      if (currentValue > maxValue) {
-        this.sharedConfig.requests = suggestedDefault;
-        if (input) input.value = suggestedDefault;
-        slider.value = suggestedDefault;
-      } else {
-        // Ensure slider value matches input value
-        slider.value = currentValue;
+  /**
+   * Update token input max values
+   */
+  updateTokenLimit(maxTokens) {
+    const inputSlider = document.getElementById('shared-input-slider');
+    const outputSlider = document.getElementById('shared-output-slider');
+
+    if (inputSlider) {
+      inputSlider.max = maxTokens;
+      // Adjust current value if exceeds new max
+      if (this.sharedConfig.inputTokens > maxTokens) {
+        this.sharedConfig.inputTokens = Math.floor(maxTokens * 0.8);
+        inputSlider.value = this.sharedConfig.inputTokens;
+        document.getElementById('shared-input-tokens').value = this.sharedConfig.inputTokens;
       }
+    }
+
+    if (outputSlider) {
+      outputSlider.max = maxTokens;
+      // Adjust current value if exceeds new max
+      if (this.sharedConfig.outputTokens > maxTokens) {
+        this.sharedConfig.outputTokens = Math.floor(maxTokens * 0.2);
+        outputSlider.value = this.sharedConfig.outputTokens;
+        document.getElementById('shared-output-tokens').value = this.sharedConfig.outputTokens;
+      }
+    }
+  },
+
+  /**
+   * Update RPM limit display and max value
+   */
+  updateRpmLimit(maxRpm) {
+    const rpmSlider = document.getElementById('shared-rpm-slider');
+    const rpmInput = document.getElementById('shared-rpm');
+    const rpmLimitDisplay = document.getElementById('rpm-limit-display');
+
+    if (rpmSlider) {
+      rpmSlider.max = maxRpm;
+      // Adjust current value if exceeds new max
+      if (this.sharedConfig.rpm > maxRpm) {
+        this.sharedConfig.rpm = maxRpm;
+        rpmSlider.value = maxRpm;
+        if (rpmInput) rpmInput.value = maxRpm;
+      }
+    }
+
+    if (rpmLimitDisplay) {
+      rpmLimitDisplay.textContent = maxRpm;
     }
   },
 
@@ -435,8 +492,10 @@ const App = {
       model,
       inputTokens,
       outputTokens,
-      requestsPerMinute: this.sharedConfig.requests,
-      timeframe: this.currentTimeframe,
+      rpm: this.sharedConfig.rpm,
+      calcMode: this.sharedConfig.calcMode,
+      duration: this.sharedConfig.duration,
+      totalRequests: this.sharedConfig.totalRequests,
       enabled: true
     }));
 
@@ -487,15 +546,15 @@ const App = {
 
     // Calculate cost per 1K requests
     if (costPer1kEl) {
-      const costPer1k = (cheapest.totalCost.totalCost / this.sharedConfig.requests) * 1000;
+      const costPer1k = (cheapest.totalCost.totalCost / cheapest.totalCost.totalRequests) * 1000;
       costPer1kEl.textContent = Utils.formatCurrency(costPer1k);
     }
 
     timeframeLabelEls.forEach(el => {
-      if (cheapest.totalCost.period === 'total') {
+      if (cheapest.totalCost.mode === 'total') {
         el.textContent = '(total)';
       } else {
-        el.textContent = `/ ${cheapest.totalCost.period}`;
+        el.textContent = `/ ${cheapest.totalCost.duration}`;
       }
     });
   },
@@ -567,14 +626,8 @@ const App = {
       return;
     }
 
-    // Convert requests to per-minute based on timeframe
-    let requestsPerMinute = this.sharedConfig.requests;
-    switch (this.currentTimeframe) {
-      case 'hour': requestsPerMinute = this.sharedConfig.requests / 60; break;
-      case 'day': requestsPerMinute = this.sharedConfig.requests / (60 * 24); break;
-      case 'month': requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30); break;
-      case 'total': requestsPerMinute = this.sharedConfig.requests / 60; break;
-    }
+    // RPM is now directly available in config
+    const requestsPerMinute = this.sharedConfig.rpm;
 
     // Calculate average utilization across all models
     let totalUtilization = 0;
@@ -678,13 +731,7 @@ const App = {
 
       // Calculate overall quota usage for badge
       const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
-      let requestsPerMinute = this.sharedConfig.requests;
-      switch (this.currentTimeframe) {
-        case 'hour': requestsPerMinute = this.sharedConfig.requests / 60; break;
-        case 'day': requestsPerMinute = this.sharedConfig.requests / (60 * 24); break;
-        case 'month': requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30); break;
-        case 'total': requestsPerMinute = this.sharedConfig.requests / 60; break;
-      }
+      const requestsPerMinute = this.sharedConfig.rpm;
       const tokensPerMinute = totalTokens * requestsPerMinute;
 
       const contextUsage = result.model.context_window ? (totalTokens / result.model.context_window * 100) : 0;
@@ -784,15 +831,8 @@ const App = {
     const model = result.model;
     const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
 
-    // Convert requests to per-minute based on timeframe
-    let requestsPerMinute = this.sharedConfig.requests;
-    switch (this.currentTimeframe) {
-      case 'hour': requestsPerMinute = this.sharedConfig.requests / 60; break;
-      case 'day': requestsPerMinute = this.sharedConfig.requests / (60 * 24); break;
-      case 'month': requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30); break;
-      case 'total': requestsPerMinute = this.sharedConfig.requests / 60; break;
-    }
-
+    // RPM is now directly available in config
+    const requestsPerMinute = this.sharedConfig.rpm;
     const tokensPerMinute = totalTokens * requestsPerMinute;
 
     // Calculate usage percentages
@@ -899,13 +939,7 @@ const App = {
 
       // Calculate quota usage
       const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
-      let requestsPerMinute = this.sharedConfig.requests;
-      switch (this.currentTimeframe) {
-        case 'hour': requestsPerMinute = this.sharedConfig.requests / 60; break;
-        case 'day': requestsPerMinute = this.sharedConfig.requests / (60 * 24); break;
-        case 'month': requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30); break;
-        case 'total': requestsPerMinute = this.sharedConfig.requests / 60; break;
-      }
+      const requestsPerMinute = this.sharedConfig.rpm;
       const tokensPerMinute = totalTokens * requestsPerMinute;
 
       const contextUsage = result.model.context_window ? (totalTokens / result.model.context_window * 100) : 0;
@@ -933,19 +967,24 @@ const App = {
               <span class="model-tooltip" data-provider="${result.model.provider}">${result.model.model}</span>
             </div>
           </th>
-          <td class="px-6 py-4 ${opacity}">${Utils.formatNumber(result.model.context_window)}</td>
-          <td class="px-6 py-4 ${opacity}">
-            ${Utils.formatCurrency(result.model.input_price_per_1m)} / ${Utils.formatCurrency(result.model.output_price_per_1m)}
+          <td class="px-6 py-4 text-right ${opacity}">
+            ${Utils.formatCurrency(result.model.input_price_per_1m)}
           </td>
-          <td class="px-6 py-4 ${opacity}">
-            ${Utils.formatNumber(result.totalCost.totalInputTokens)} / ${Utils.formatNumber(result.totalCost.totalOutputTokens)}
+          <td class="px-6 py-4 text-right ${opacity}">
+            ${Utils.formatCurrency(result.model.output_price_per_1m)}
+          </td>
+          <td class="px-6 py-4 text-right ${opacity}">
+            ${Utils.formatCompactNumber(result.totalCost.totalInputTokens)}
+          </td>
+          <td class="px-6 py-4 text-right ${opacity}">
+            ${Utils.formatCompactNumber(result.totalCost.totalOutputTokens)}
           </td>
           <td class="px-6 py-4 text-right font-medium ${opacity}">
             ${isEnabled ? Utils.formatCurrency(result.totalCost.totalCost) : '-'}
           </td>
         </tr>
         <tr id="${rowId}-expanded" class="border-b border-border-light dark:border-border-dark">
-          <td colspan="5" class="p-0">
+          <td colspan="6" class="p-0">
             <div class="expanded-content" id="${rowId}-content">
               ${expandedContent}
             </div>
@@ -977,23 +1016,53 @@ const App = {
     };
 
     // Calculate cost per 1K requests for this model
-    const costPer1k = (result.totalCost.totalCost / this.sharedConfig.requests) * 1000;
+    const costPer1k = (result.totalCost.totalCost / result.totalCost.totalRequests) * 1000;
 
     // Calculate monthly projection
     let monthlyCost = 0;
-    switch (this.currentTimeframe) {
-      case 'minute': monthlyCost = result.totalCost.totalCost * 60 * 24 * 30; break;
-      case 'hour': monthlyCost = result.totalCost.totalCost * 24 * 30; break;
-      case 'day': monthlyCost = result.totalCost.totalCost * 30; break;
-      case 'month': monthlyCost = result.totalCost.totalCost; break;
-      case 'total': monthlyCost = result.totalCost.totalCost; break;
+    if (result.totalCost.mode === 'total') {
+      // For total mode, show the total cost
+      monthlyCost = result.totalCost.totalCost;
+    } else {
+      // Project to monthly based on duration
+      switch (result.totalCost.duration) {
+        case 'hour': monthlyCost = result.totalCost.totalCost * 24 * 30; break;
+        case 'day': monthlyCost = result.totalCost.totalCost * 30; break;
+        case 'month': monthlyCost = result.totalCost.totalCost; break;
+      }
+    }
+
+    // Build calculation basis text
+    let calculationBasis = '';
+    if (result.totalCost.mode === 'total') {
+      calculationBasis = `${Utils.formatNumber(result.totalCost.totalRequests)} total requests`;
+      if (result.totalCost.runtimeMinutes) {
+        const hours = Math.floor(result.totalCost.runtimeMinutes / 60);
+        const minutes = Math.floor(result.totalCost.runtimeMinutes % 60);
+        if (hours > 0) {
+          calculationBasis += ` (~${hours}h ${minutes}m at ${result.totalCost.rpm} RPM)`;
+        } else {
+          calculationBasis += ` (~${minutes} minutes at ${result.totalCost.rpm} RPM)`;
+        }
+      }
+    } else {
+      calculationBasis = `${result.totalCost.rpm} RPM × ${result.totalCost.duration} = ${Utils.formatNumber(result.totalCost.totalRequests)} requests`;
     }
 
     return `
       <div class="p-6 bg-background-light/50 dark:bg-background-dark/50">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Calculation Basis Banner -->
+        <div class="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-sm">calculate</span>
+            <span class="text-xs font-medium text-text-light/80 dark:text-text-dark/80">Calculation Basis:</span>
+            <span class="text-xs font-semibold text-primary">${calculationBasis}</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <!-- Cost Details -->
-          <div>
+          <div class="md:col-span-2">
             <h4 class="font-semibold text-sm mb-3 text-primary">Cost Details</h4>
             <div class="space-y-2 text-sm">
               <div class="flex justify-between">
@@ -1005,11 +1074,15 @@ const App = {
                 <span class="font-medium">${result.totalCost.totalOutputTokens.toLocaleString()} tokens × ${Utils.formatCurrency(result.model.output_price_per_1m)}/1M = ${Utils.formatCurrency(result.totalCost.totalOutputCost)}</span>
               </div>
               <div class="flex justify-between pt-2 border-t border-border-light dark:border-border-dark">
+                <span class="text-text-light/70 dark:text-text-dark/70">Cost per Request:</span>
+                <span class="font-medium">${Utils.formatCurrency(result.totalCost.costPerRequest)}</span>
+              </div>
+              <div class="flex justify-between">
                 <span class="text-text-light/70 dark:text-text-dark/70">Cost per 1K Requests:</span>
                 <span class="font-medium">${Utils.formatCurrency(costPer1k)}</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-text-light/70 dark:text-text-dark/70">Monthly Projection:</span>
+                <span class="text-text-light/70 dark:text-text-dark/70">${result.totalCost.mode === 'total' ? 'Total Cost:' : 'Monthly Projection:'}</span>
                 <span class="font-medium">${Utils.formatCurrency(monthlyCost)}</span>
               </div>
             </div>
