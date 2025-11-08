@@ -917,12 +917,6 @@ const App = {
               <span class="text-xs w-12 text-right">${tpmUsageStr}</span>
             </div>
           </td>
-          <td class="px-6 py-4">
-            <div class="flex items-center gap-2 ${statusColor}">
-              <span class="material-symbols-outlined text-sm">${statusIcon}</span>
-              <span class="text-xs">${statusText}</span>
-            </div>
-          </td>
         </tr>
       `;
     }).join('');
