@@ -214,15 +214,15 @@
               <input type="range" id="shared-output-slider" value="1500" min="1" max="10000" step="1" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
             </div>
 
-            <!-- Total Requests -->
+            <!-- Requests -->
             <div class="flex flex-col gap-2">
               <label class="flex items-center justify-between">
                 <span class="text-sm font-medium">
-                  <span id="requests-label">Total Requests</span>
+                  <span id="requests-label">Requests per Minute</span>
                 </span>
-                <input type="number" id="shared-requests" value="1000" min="1" max="10000000" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
+                <input type="number" id="shared-requests" value="100" min="1" max="1000000" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
               </label>
-              <input type="range" id="shared-requests-slider" value="1000" min="1" max="10000000" step="1000" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
+              <input type="range" id="shared-requests-slider" value="100" min="1" max="1000000" step="1000" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
             </div>
           </div>
 
@@ -236,7 +236,7 @@
               <!-- Timeframe Selector -->
               <div class="flex flex-col gap-2">
                 <label class="flex flex-col gap-2">
-                  <p class="text-sm font-medium">Calculate Cost For</p>
+                  <p class="text-sm font-medium">Request type</p>
                   <select id="timeframe-select" class="form-select w-full rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary">
                     <option value="minute">Per Minute</option>
                     <option value="hour">Per Hour</option>

@@ -11,7 +11,7 @@ const App = {
     outputTokens: 1500,
     requests: 10
   },
-  currentTimeframe: 'total',
+  currentTimeframe: 'minute',
   globalInputUnit: 'tokens',
   globalOutputUnit: 'tokens',
 
@@ -32,7 +32,7 @@ const App = {
       this.setupEventListeners();
 
       // Initialize with default model selection
-      const gpt4o = this.models.find(m => m.model === 'GPT-4o');
+      const gpt4o = this.models.find(m => m.model === 'GPT-5');
       if (gpt4o) {
         this.addModelToSelection(gpt4o);
       }
@@ -368,40 +368,40 @@ const App = {
 
     if (!label) return;
 
-    let labelText = 'Total Requests';
-    let maxValue = 10000;
-    let step = 10;
-    let suggestedDefault = 1000;
+    let labelText = 'Requests per Minute';
+    let maxValue = 1000;
+    let step = 1;
+    let suggestedDefault = 10;
 
     switch (this.currentTimeframe) {
       case 'minute':
         labelText = 'Requests per Minute';
-        maxValue = 1000;
+        maxValue = 99999;
         step = 1;
         suggestedDefault = 100;
         break;
       case 'hour':
         labelText = 'Requests per Hour';
-        maxValue = 10000;
+        maxValue = 99999;
         step = 1;
         suggestedDefault = 1000;
         break;
       case 'day':
         labelText = 'Requests per Day';
-        maxValue = 100000;
+        maxValue = 99999;
         step = 1;
         suggestedDefault = 10000;
         break;
       case 'month':
         labelText = 'Requests per Month';
-        maxValue = 1000;
+        maxValue = 99999;
         step = 1;
         suggestedDefault = 100;
         break;
       case 'total':
         labelText = 'Total Requests';
         maxValue = 99999;
-        step = 100;
+        step = 1;
         suggestedDefault = 1000;
         break;
     }
@@ -994,9 +994,9 @@ const App = {
 
     // Reset shared config to defaults
     this.sharedConfig = {
-      inputTokens: 500,
+      inputTokens: 5000,
       outputTokens: 1500,
-      requests: 100000
+      requests: 100
     };
 
     // Reset UI inputs
@@ -1004,8 +1004,8 @@ const App = {
     document.getElementById('shared-input-slider').value = 5000;
     document.getElementById('shared-output-tokens').value = 1500;
     document.getElementById('shared-output-slider').value = 1500;
-    document.getElementById('shared-requests').value = 1000;
-    document.getElementById('shared-requests-slider').value = 1000;
+    document.getElementById('shared-requests').value = 100;
+    document.getElementById('shared-requests-slider').value = 100;
 
     // Clear model search
     const searchInput = document.getElementById('model-search');
