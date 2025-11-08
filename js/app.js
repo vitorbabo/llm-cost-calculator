@@ -536,10 +536,10 @@ const App = {
 
     if (maxThroughputModel) {
       if (maxTpm > 0) {
-        maxThroughputEl.textContent = Utils.formatNumber(maxTpm) + ' TPM';
+        maxThroughputEl.textContent = Utils.formatCompactNumber(maxTpm) + ' TPM';
         maxThroughputDetailEl.textContent = maxThroughputModel.model;
       } else if (maxRpm > 0) {
-        maxThroughputEl.textContent = Utils.formatNumber(maxRpm) + ' RPM';
+        maxThroughputEl.textContent = Utils.formatCompactNumber(maxRpm) + ' RPM';
         maxThroughputDetailEl.textContent = maxThroughputModel.model;
       } else {
         maxThroughputEl.textContent = 'N/A';
