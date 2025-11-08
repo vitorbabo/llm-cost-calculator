@@ -11,7 +11,7 @@ const App = {
     outputTokens: 1500,
     requests: 10
   },
-  currentTimeframe: 'total',
+  currentTimeframe: 'minute',
   globalInputUnit: 'tokens',
   globalOutputUnit: 'tokens',
 
@@ -32,7 +32,7 @@ const App = {
       this.setupEventListeners();
 
       // Initialize with default model selection
-      const gpt4o = this.models.find(m => m.model === 'GPT-4o');
+      const gpt4o = this.models.find(m => m.model === 'GPT-5');
       if (gpt4o) {
         this.addModelToSelection(gpt4o);
       }
@@ -157,7 +157,7 @@ const App = {
 
     container.innerHTML = this.selectedModels.map(model => `
       <div class="flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/30 rounded-lg">
-        <span class="text-sm font-medium">${model.provider}: ${model.model}</span>
+        <span class="text-sm font-medium">${model.model}</span>
         <button class="remove-model-btn hover:bg-primary/20 rounded-full p-0.5 transition-colors"
                 data-provider="${model.provider}"
                 data-model="${model.model}">
@@ -368,40 +368,40 @@ const App = {
 
     if (!label) return;
 
-    let labelText = 'Total Requests';
-    let maxValue = 10000;
-    let step = 10;
-    let suggestedDefault = 1000;
+    let labelText = 'Requests per Minute';
+    let maxValue = 1000;
+    let step = 1;
+    let suggestedDefault = 10;
 
     switch (this.currentTimeframe) {
       case 'minute':
         labelText = 'Requests per Minute';
-        maxValue = 1000;
+        maxValue = 99999;
         step = 1;
         suggestedDefault = 100;
         break;
       case 'hour':
         labelText = 'Requests per Hour';
-        maxValue = 10000;
+        maxValue = 99999;
         step = 1;
         suggestedDefault = 1000;
         break;
       case 'day':
         labelText = 'Requests per Day';
-        maxValue = 100000;
+        maxValue = 99999;
         step = 1;
         suggestedDefault = 10000;
         break;
       case 'month':
         labelText = 'Requests per Month';
-        maxValue = 1000;
+        maxValue = 99999;
         step = 1;
         suggestedDefault = 100;
         break;
       case 'total':
         labelText = 'Total Requests';
         maxValue = 99999;
-        step = 100;
+        step = 1;
         suggestedDefault = 1000;
         break;
     }
@@ -667,41 +667,44 @@ const App = {
       const hasWarnings = result.validation.warnings.some(w => w.severity === 'warning');
 
       let statusIcon = '';
-      let statusText = '';
       let statusColor = '';
+      let warningText = '';
 
       if (hasErrors) {
         statusIcon = 'error';
-        statusText = 'Exceeded';
         statusColor = 'text-red-600 dark:text-red-400';
+        const errorMessages = result.validation.warnings
+          .filter(w => w.severity === 'error')
+          .map(w => w.message)
+          .join('\n');
+        warningText = errorMessages;
       } else if (hasWarnings) {
         statusIcon = 'warning';
-        statusText = 'Warning';
         statusColor = 'text-yellow-600 dark:text-yellow-400';
-      } else {
-        statusIcon = 'check_circle';
-        statusText = 'OK';
-        statusColor = 'text-green-600 dark:text-green-400';
+        const warningMessages = result.validation.warnings
+          .filter(w => w.severity === 'warning')
+          .map(w => w.message)
+          .join('\n');
+        warningText = warningMessages;
       }
+
+      const statusIconHtml = (hasErrors || hasWarnings) ?
+        `<span class="material-symbols-outlined text-base ${statusColor} warning-tooltip" data-warning="${warningText}">${statusIcon}</span>` : '';
 
       return `
         <tr class="border-b border-border-light dark:border-border-dark">
           <th class="px-6 py-4 font-medium whitespace-nowrap ${opacity}" scope="row">
-            ${result.model.model}
+            <div class="model-name-wrapper">
+              ${statusIconHtml}
+              <span class="model-tooltip" data-provider="${result.model.provider}">${result.model.model}</span>
+            </div>
           </th>
-          <td class="px-6 py-4 ${opacity}">${result.model.provider}</td>
           <td class="px-6 py-4 ${opacity}">${Utils.formatNumber(result.model.context_window)}</td>
           <td class="px-6 py-4 ${opacity}">
             ${Utils.formatCurrency(result.model.input_price_per_1m)} / ${Utils.formatCurrency(result.model.output_price_per_1m)}
           </td>
           <td class="px-6 py-4 ${opacity}">
             ${Utils.formatNumber(result.totalCost.totalInputTokens)} / ${Utils.formatNumber(result.totalCost.totalOutputTokens)}
-          </td>
-          <td class="px-6 py-4 ${opacity}">
-            <div class="flex items-center gap-2 ${statusColor}">
-              <span class="material-symbols-outlined text-sm">${statusIcon}</span>
-              <span class="text-xs">${statusText}</span>
-            </div>
           </td>
           <td class="px-6 py-4 text-right font-medium ${opacity}">
             ${isEnabled ? Utils.formatCurrency(result.totalCost.totalCost) : '-'}
@@ -774,7 +777,7 @@ const App = {
 
       // Calculate utilization for this model
       const rpmUtil = model.rpm_limit ? (requestsPerMinute / model.rpm_limit * 100) : 0;
-      const totalTokens = result.inputTokens + result.outputTokens;
+      const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
       const tokensPerMinute = totalTokens * requestsPerMinute;
       const tpmUtil = model.tpm_limit ? (tokensPerMinute / model.tpm_limit * 100) : 0;
       const modelUtil = Math.max(rpmUtil, tpmUtil);
@@ -805,7 +808,7 @@ const App = {
 
     tbody.innerHTML = results.map(result => {
       const model = result.model;
-      const totalTokens = result.inputTokens + result.outputTokens;
+      const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
 
       // Convert requests to per-minute based on timeframe
       let requestsPerMinute = this.sharedConfig.requests;
@@ -829,6 +832,10 @@ const App = {
         default:
           requestsPerMinute = this.sharedConfig.requests;
       }
+
+      // Calculate Context Window usage
+      const contextUsage = model.context_window ? (totalTokens / model.context_window * 100) : 0;
+      const contextUsageStr = `${contextUsage.toFixed(1)}%`;
 
       // Calculate RPM usage
       const rpmUsage = model.rpm_limit ? (requestsPerMinute / model.rpm_limit * 100) : 0;
@@ -862,8 +869,13 @@ const App = {
       }
 
       // Create progress bar for usage
+      const contextBarWidth = Math.min(contextUsage, 100);
       const rpmBarWidth = Math.min(rpmUsage, 100);
       const tpmBarWidth = Math.min(tpmUsage, 100);
+
+      let contextBarColor = 'bg-green-500';
+      if (contextUsage > 100) contextBarColor = 'bg-red-500';
+      else if (contextUsage > 80) contextBarColor = 'bg-yellow-500';
 
       let rpmBarColor = 'bg-green-500';
       if (rpmUsage > 100) rpmBarColor = 'bg-red-500';
@@ -875,10 +887,20 @@ const App = {
 
       return `
         <tr class="border-b border-border-light dark:border-border-dark">
-          <th class="px-6 py-4 font-medium whitespace-nowrap" scope="row">${model.model}</th>
-          <td class="px-6 py-4">${model.provider}</td>
+          <th class="px-6 py-4 font-medium whitespace-nowrap" scope="row">
+            <span class="model-tooltip" data-provider="${model.provider}">${model.model}</span>
+          </th>
+          <td class="px-6 py-4">${Utils.formatNumber(model.context_window)}</td>
           <td class="px-6 py-4">${model.rpm_limit ? Utils.formatNumber(model.rpm_limit) : 'N/A'}</td>
           <td class="px-6 py-4">${model.tpm_limit ? Utils.formatNumber(model.tpm_limit) : 'N/A'}</td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-2">
+              <div class="flex-1 h-2 bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
+                <div class="${contextBarColor} h-full transition-all duration-300" style="width: ${contextBarWidth}%"></div>
+              </div>
+              <span class="text-xs w-12 text-right">${contextUsageStr}</span>
+            </div>
+          </td>
           <td class="px-6 py-4">
             <div class="flex items-center gap-2">
               <div class="flex-1 h-2 bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
@@ -893,12 +915,6 @@ const App = {
                 <div class="${tpmBarColor} h-full transition-all duration-300" style="width: ${tpmBarWidth}%"></div>
               </div>
               <span class="text-xs w-12 text-right">${tpmUsageStr}</span>
-            </div>
-          </td>
-          <td class="px-6 py-4">
-            <div class="flex items-center gap-2 ${statusColor}">
-              <span class="material-symbols-outlined text-sm">${statusIcon}</span>
-              <span class="text-xs">${statusText}</span>
             </div>
           </td>
         </tr>
@@ -922,7 +938,7 @@ const App = {
     if (tbody) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="7" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
+          <td colspan="8" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
             Select models to see throughput analysis
           </td>
         </tr>
@@ -948,7 +964,7 @@ const App = {
     if (tbody) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="7" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
+          <td colspan="5" class="px-6 py-8 text-center text-text-light/60 dark:text-text-dark/60">
             Select models to see results
           </td>
         </tr>
@@ -972,9 +988,9 @@ const App = {
 
     // Reset shared config to defaults
     this.sharedConfig = {
-      inputTokens: 500,
+      inputTokens: 5000,
       outputTokens: 1500,
-      requests: 100000
+      requests: 100
     };
 
     // Reset UI inputs
@@ -982,8 +998,8 @@ const App = {
     document.getElementById('shared-input-slider').value = 5000;
     document.getElementById('shared-output-tokens').value = 1500;
     document.getElementById('shared-output-slider').value = 1500;
-    document.getElementById('shared-requests').value = 1000;
-    document.getElementById('shared-requests-slider').value = 1000;
+    document.getElementById('shared-requests').value = 100;
+    document.getElementById('shared-requests-slider').value = 100;
 
     // Clear model search
     const searchInput = document.getElementById('model-search');

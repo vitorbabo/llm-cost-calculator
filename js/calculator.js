@@ -163,7 +163,7 @@ const Calculator = {
     if (limits.rpm && requestsPerMinute > limits.rpm) {
       warnings.push({
         type: 'rpm',
-        message: `Requests per minute (${requestsPerMinute}) exceeds limit (${limits.rpm})`,
+        message: `Requests per minute (${Utils.formatNumber(requestsPerMinute)}) exceeds limit (${Utils.formatNumber(limits.rpm)})`,
         severity: 'error',
         limit: limits.rpm,
         current: requestsPerMinute,
@@ -175,7 +175,7 @@ const Calculator = {
     if (limits.tpm && tokensPerMinute > limits.tpm) {
       warnings.push({
         type: 'tpm',
-        message: `Tokens per minute (${tokensPerMinute}) exceeds limit (${limits.tpm})`,
+        message: `Tokens per minute (${Utils.formatNumber(tokensPerMinute)}) exceeds limit (${Utils.formatNumber(limits.tpm)})`,
         severity: 'error',
         limit: limits.tpm,
         current: tokensPerMinute,
@@ -187,7 +187,7 @@ const Calculator = {
     if (tokensPerRequest > model.context_window) {
       warnings.push({
         type: 'context',
-        message: `Total tokens (${tokensPerRequest}) exceeds context window (${model.context_window})`,
+        message: `Total tokens (${Utils.formatNumber(tokensPerRequest)}) exceeds context window (${Utils.formatNumber(model.context_window)})`,
         severity: 'error',
         limit: model.context_window,
         current: tokensPerRequest,
