@@ -208,6 +208,14 @@ input[type="radio"]:checked {
 }
 
 input[type="radio"]:focus {
-  ring-color: #ffa500;
+  background-color: #ffa500;
   border-color: #ffa500;
+}
+
+.icon-download {
+  font-size: 18px;
+}
+
+.icon-pdf{
+  font-size: 18px;
 }
