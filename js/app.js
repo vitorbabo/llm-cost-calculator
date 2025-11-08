@@ -9,10 +9,10 @@ const App = {
   sharedConfig: {
     inputTokens: 5000,
     outputTokens: 1500,
-    rpm: 100, // Requests per minute
+    rpm: 20, // Requests per minute
     calcMode: 'duration', // 'duration' or 'total'
     duration: 'day', // 'hour', 'day', or 'month'
-    totalRequests: 10000 // For 'total' mode
+    totalRequests: 100 // For 'total' mode
   },
   globalInputUnit: 'tokens',
   globalOutputUnit: 'tokens',
