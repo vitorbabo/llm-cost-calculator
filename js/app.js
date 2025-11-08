@@ -1633,16 +1633,47 @@ const App = {
     this.sharedConfig = {
       inputTokens: 5000,
       outputTokens: 1500,
-      requests: 100
+      rpm: 20,
+      calcMode: 'duration',
+      duration: 'day',
+      totalRequests: 100
     };
 
     // Reset UI inputs
-    document.getElementById('shared-input-tokens').value = 5000;
-    document.getElementById('shared-input-slider').value = 5000;
-    document.getElementById('shared-output-tokens').value = 1500;
-    document.getElementById('shared-output-slider').value = 1500;
-    document.getElementById('shared-requests').value = 100;
-    document.getElementById('shared-requests-slider').value = 100;
+    const sharedInputTokens = document.getElementById('shared-input-tokens');
+    const sharedInputSlider = document.getElementById('shared-input-slider');
+    const sharedOutputTokens = document.getElementById('shared-output-tokens');
+    const sharedOutputSlider = document.getElementById('shared-output-slider');
+    const sharedRpm = document.getElementById('shared-rpm');
+    const sharedRpmSlider = document.getElementById('shared-rpm-slider');
+    const calcModeDuration = document.getElementById('calc-mode-duration');
+    const durationSelect = document.getElementById('duration-select');
+    const totalRequestsInput = document.getElementById('total-requests-input');
+
+    if (sharedInputTokens) sharedInputTokens.value = 5000;
+    if (sharedInputSlider) sharedInputSlider.value = 5000;
+    if (sharedOutputTokens) sharedOutputTokens.value = 1500;
+    if (sharedOutputSlider) sharedOutputSlider.value = 1500;
+    if (sharedRpm) sharedRpm.value = 20;
+    if (sharedRpmSlider) sharedRpmSlider.value = 20;
+    if (calcModeDuration) calcModeDuration.checked = true;
+    if (durationSelect) durationSelect.value = 'day';
+    if (totalRequestsInput) {
+      totalRequestsInput.value = 100;
+      totalRequestsInput.disabled = true;
+    }
+
+    // Reset unit selectors
+    const globalInputUnit = document.getElementById('global-input-unit');
+    const globalOutputUnit = document.getElementById('global-output-unit');
+    if (globalInputUnit) {
+      globalInputUnit.value = 'tokens';
+      this.globalInputUnit = 'tokens';
+    }
+    if (globalOutputUnit) {
+      globalOutputUnit.value = 'tokens';
+      this.globalOutputUnit = 'tokens';
+    }
 
     // Clear model search
     const searchInput = document.getElementById('model-search');
@@ -1659,10 +1690,12 @@ const App = {
     this.clearResults();
 
     // Reinitialize with default model
-    const gpt4o = this.models.find(m => m.provider === 'OpenAI' && m.model === 'GPT-4o');
-    if (gpt4o) {
-      this.addModelToSelection(gpt4o);
+    const gpt5 = this.models.find(m => m.model === 'GPT-5');
+    if (gpt5) {
+      this.addModelToSelection(gpt5);
     }
+
+    console.log('Reset completed');
   },
 
   /**
