@@ -385,54 +385,101 @@ const Utils = {
     });
     yPos += 10;
 
-    // Model comparison table
+    // Model Details Section
     doc.setFontSize(14);
     doc.setFont(undefined, 'bold');
-    doc.text('Model Comparison', margin, yPos);
-    yPos += 7;
+    doc.text('Model Details', margin, yPos);
+    yPos += 10;
 
-    // Table headers
-    doc.setFontSize(8);
-    doc.setFont(undefined, 'bold');
-    const headers = ['Model', 'Input Price', 'Output Price', 'Total Cost'];
-    const colWidth = contentWidth / headers.length;
-
-    headers.forEach((header, i) => {
-      doc.text(header, margin + (i * colWidth), yPos);
-    });
-    yPos += 5;
-
-    // Draw line under headers
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 5;
-
-    // Table rows
-    doc.setFont(undefined, 'normal');
     enabledResults.forEach((result, index) => {
       // Check if we need a new page
-      if (yPos > 270) {
+      if (yPos > 240) {
         doc.addPage();
         yPos = 20;
       }
 
       const model = result.model;
+      const requestCost = result.requestCost;
       const totalCost = result.totalCost;
+      const validation = result.validation;
 
-      const rowData = [
-        `${model.provider} ${model.model}`,
-        `$${model.input_price_per_1m}/1M`,
-        `$${model.output_price_per_1m}/1M`,
-        this.formatCurrency(totalCost.totalCost)
-      ];
+      // Calculate usage percentages
+      const tokensPerRequest = (config.inputTokens || 0) + (config.outputTokens || 0);
+      const contextUsage = model.context_window > 0
+        ? (tokensPerRequest / model.context_window) * 100
+        : 0;
+      const rpmUsage = validation.limits.rpm
+        ? (validation.usage.requestsPerMinute / validation.limits.rpm) * 100
+        : 0;
+      const tpmUsage = validation.limits.tpm
+        ? (validation.usage.tokensPerMinute / validation.limits.tpm) * 100
+        : 0;
 
-      rowData.forEach((data, i) => {
-        const text = String(data);
-        const maxWidth = colWidth - 2;
-        const lines = doc.splitTextToSize(text, maxWidth);
-        doc.text(lines[0], margin + (i * colWidth), yPos);
-      });
-
+      // Model name header
+      doc.setFontSize(11);
+      doc.setFont(undefined, 'bold');
+      doc.text(`${index + 1}. ${model.provider} - ${model.model}`, margin, yPos);
       yPos += 6;
+
+      // Pricing info
+      doc.setFontSize(9);
+      doc.setFont(undefined, 'normal');
+      doc.text(`Input Price: $${model.input_price_per_1m}/1M tokens`, margin + 5, yPos);
+      yPos += 4;
+      doc.text(`Output Price: $${model.output_price_per_1m}/1M tokens`, margin + 5, yPos);
+      yPos += 6;
+
+      // Cost Details
+      doc.setFont(undefined, 'bold');
+      doc.text('Cost Details:', margin + 5, yPos);
+      yPos += 4;
+      doc.setFont(undefined, 'normal');
+      doc.text(`Input Cost: ${this.formatCurrency(requestCost.inputCost)} per request`, margin + 10, yPos);
+      yPos += 4;
+      doc.text(`Output Cost: ${this.formatCurrency(requestCost.outputCost)} per request`, margin + 10, yPos);
+      yPos += 4;
+      doc.text(`Total Cost per Request: ${this.formatCurrency(requestCost.totalCost)}`, margin + 10, yPos);
+      yPos += 4;
+      doc.setFont(undefined, 'bold');
+      doc.text(`Total Cost: ${this.formatCurrency(totalCost.totalCost)}`, margin + 10, yPos);
+      yPos += 6;
+
+      // Quota Usage
+      doc.setFont(undefined, 'bold');
+      doc.text('Quota Usage:', margin + 5, yPos);
+      yPos += 4;
+      doc.setFont(undefined, 'normal');
+
+      const contextColor = contextUsage > 100 ? [239, 68, 68] : contextUsage > 80 ? [245, 158, 11] : [16, 185, 129];
+      const rpmColor = rpmUsage > 100 ? [239, 68, 68] : rpmUsage > 80 ? [245, 158, 11] : [16, 185, 129];
+      const tpmColor = tpmUsage > 100 ? [239, 68, 68] : tpmUsage > 80 ? [245, 158, 11] : [16, 185, 129];
+
+      doc.setTextColor(...contextColor);
+      doc.text(`Context Window Usage: ${contextUsage.toFixed(2)}%`, margin + 10, yPos);
+      yPos += 4;
+
+      if (validation.limits.rpm) {
+        doc.setTextColor(...rpmColor);
+        doc.text(`RPM Usage: ${rpmUsage.toFixed(2)}%`, margin + 10, yPos);
+        yPos += 4;
+      }
+
+      if (validation.limits.tpm) {
+        doc.setTextColor(...tpmColor);
+        doc.text(`TPM Usage: ${tpmUsage.toFixed(2)}%`, margin + 10, yPos);
+        yPos += 4;
+      }
+
+      // Reset text color
+      doc.setTextColor(0, 0, 0);
+      yPos += 4;
+
+      // Draw separator line
+      if (index < enabledResults.length - 1) {
+        doc.setDrawColor(200, 200, 200);
+        doc.line(margin, yPos, pageWidth - margin, yPos);
+        yPos += 6;
+      }
     });
 
     // Save the PDF
