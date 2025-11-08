@@ -205,6 +205,17 @@
   .dark .quota-overlay-line {
     border-top-color: rgba(248, 113, 113, 0.5);
   }
+
+  /* Radio button accent color - override Tailwind Forms plugin */
+  input[type="radio"]:checked {
+    background-color: #ffa500;
+    border-color: #ffa500;
+  }
+
+  input[type="radio"]:focus {
+    ring-color: #ffa500;
+    border-color: #ffa500;
+  }
 </style>
 <script id="tailwind-config">
   tailwind.config = {
