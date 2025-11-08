@@ -496,6 +496,9 @@ const App = {
     // Update summary cards
     this.updateCostSummaryCards(cheapest);
 
+    // Update quota health card
+    this.updateQuotaHealthCard(results);
+
     // Update chart (bar for multiple, pie for single)
     if (enabledResults.length === 1) {
       this.showSingleModelChart(cheapest);
@@ -566,6 +569,68 @@ const App = {
   },
 
   /**
+   * Update quota health card
+   */
+  updateQuotaHealthCard(results) {
+    const quotaHealthEl = document.getElementById('quota-health');
+    const quotaHealthDetailEl = document.getElementById('quota-health-detail');
+
+    if (!quotaHealthEl || !quotaHealthDetailEl) return;
+
+    const enabledResults = results.filter(r => r.enabled);
+    if (enabledResults.length === 0) {
+      quotaHealthEl.textContent = '-';
+      quotaHealthDetailEl.textContent = 'No models selected';
+      return;
+    }
+
+    // Count quota issues
+    let errorCount = 0;
+    let warningCount = 0;
+    let okCount = 0;
+
+    enabledResults.forEach(result => {
+      const hasErrors = result.validation.warnings.some(w => w.severity === 'error');
+      const hasWarnings = result.validation.warnings.some(w => w.severity === 'warning');
+
+      if (hasErrors) {
+        errorCount++;
+      } else if (hasWarnings) {
+        warningCount++;
+      } else {
+        okCount++;
+      }
+    });
+
+    // Determine overall health status
+    let healthIcon = '';
+    let healthColor = '';
+    let healthText = '';
+    let detailText = '';
+
+    if (errorCount > 0) {
+      healthIcon = '⚠️';
+      healthColor = 'text-red-600 dark:text-red-400';
+      healthText = `${errorCount} Error${errorCount > 1 ? 's' : ''}`;
+      detailText = `${errorCount} model${errorCount > 1 ? 's' : ''} exceed${errorCount === 1 ? 's' : ''} limits`;
+    } else if (warningCount > 0) {
+      healthIcon = '⚡';
+      healthColor = 'text-yellow-600 dark:text-yellow-400';
+      healthText = `${warningCount} Warning${warningCount > 1 ? 's' : ''}`;
+      detailText = `${warningCount} model${warningCount > 1 ? 's' : ''} near limits`;
+    } else {
+      healthIcon = '✓';
+      healthColor = 'text-green-600 dark:text-green-400';
+      healthText = 'All OK';
+      detailText = `All ${okCount} model${okCount > 1 ? 's' : ''} within limits`;
+    }
+
+    quotaHealthEl.innerHTML = `<span class="${healthColor}">${healthIcon} ${healthText}</span>`;
+    quotaHealthEl.className = `text-2xl font-bold ${healthColor}`;
+    quotaHealthDetailEl.textContent = detailText;
+  },
+
+  /**
    * Show multi-model bar chart
    */
   showMultiModelChart(enabledResults) {
@@ -586,14 +651,53 @@ const App = {
       const heightPercent = maxCost > 0 ? (result.totalCost.totalCost / maxCost * 100) : 0;
       const isFirst = result === enabledResults[0];
 
+      // Determine quota status
+      const hasErrors = result.validation.warnings.some(w => w.severity === 'error');
+      const hasWarnings = result.validation.warnings.some(w => w.severity === 'warning');
+
+      let quotaIcon = '';
+      let quotaColor = '';
+
+      if (hasErrors) {
+        quotaIcon = '🔴';
+        quotaColor = 'text-red-600 dark:text-red-400';
+      } else if (hasWarnings) {
+        quotaIcon = '⚠️';
+        quotaColor = 'text-yellow-600 dark:text-yellow-400';
+      } else {
+        quotaIcon = '✓';
+        quotaColor = 'text-green-600 dark:text-green-400';
+      }
+
+      // Calculate overall quota usage for badge
+      const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
+      let requestsPerMinute = this.sharedConfig.requests;
+      switch (this.currentTimeframe) {
+        case 'hour': requestsPerMinute = this.sharedConfig.requests / 60; break;
+        case 'day': requestsPerMinute = this.sharedConfig.requests / (60 * 24); break;
+        case 'month': requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30); break;
+        case 'total': requestsPerMinute = this.sharedConfig.requests / 60; break;
+      }
+      const tokensPerMinute = totalTokens * requestsPerMinute;
+
+      const contextUsage = result.model.context_window ? (totalTokens / result.model.context_window * 100) : 0;
+      const rpmUsage = result.model.rpm_limit ? (requestsPerMinute / result.model.rpm_limit * 100) : 0;
+      const tpmUsage = result.model.tpm_limit ? (tokensPerMinute / result.model.tpm_limit * 100) : 0;
+      const maxUsage = Math.max(contextUsage, rpmUsage, tpmUsage);
+
       return `
         <div class="flex flex-col items-center gap-2 flex-1 h-full justify-end">
-          <div class="w-full ${isFirst ? 'bg-primary' : 'bg-primary/30'} rounded-t-md transition-all duration-300"
+          <span class="text-base ${quotaColor}" title="Quota status">${quotaIcon}</span>
+          <div class="w-full ${isFirst ? 'bg-primary' : 'bg-primary/30'} rounded-t-md transition-all duration-300 relative"
                style="height: ${heightPercent}%"
-               title="${result.model.model}: ${Utils.formatCurrency(result.totalCost.totalCost)}">
+               title="${result.model.model}: ${Utils.formatCurrency(result.totalCost.totalCost)} | Quota: ${maxUsage.toFixed(0)}%">
+            ${maxUsage > 0 ? `
+              <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-t from-${hasErrors ? 'red' : hasWarnings ? 'yellow' : 'green'}-500/50 to-transparent"></div>
+            ` : ''}
           </div>
-          <p class="text-xs text-text-light/70 dark:text-text-dark/70 text-center">${result.model.model}</p>
+          <p class="text-xs text-text-light/70 dark:text-text-dark/70 text-center truncate w-full px-1">${result.model.model}</p>
           <p class="text-xs font-medium">${Utils.formatCurrency(result.totalCost.totalCost)}</p>
+          ${maxUsage > 0 ? `<p class="text-xs ${quotaColor}">${maxUsage.toFixed(0)}%</p>` : ''}
         </div>
       `;
     }).join('');
@@ -607,49 +711,138 @@ const App = {
     document.getElementById('single-model-chart')?.classList.remove('hidden');
 
     const pieContainer = document.getElementById('chart-pie');
-    if (!pieContainer) return;
+    const gaugesContainer = document.getElementById('quota-gauges');
 
-    const inputCost = result.totalCost.totalInputCost;
-    const outputCost = result.totalCost.totalOutputCost;
-    const total = inputCost + outputCost;
+    // Render cost pie chart
+    if (pieContainer) {
+      const inputCost = result.totalCost.totalInputCost;
+      const outputCost = result.totalCost.totalOutputCost;
+      const total = inputCost + outputCost;
 
-    if (total === 0) {
-      pieContainer.innerHTML = '<p class="text-text-light/60 dark:text-text-dark/60 text-sm">No cost data</p>';
-      return;
+      if (total === 0) {
+        pieContainer.innerHTML = '<p class="text-text-light/60 dark:text-text-dark/60 text-sm">No cost data</p>';
+      } else {
+        const inputPercent = (inputCost / total * 100).toFixed(1);
+        const outputPercent = (outputCost / total * 100).toFixed(1);
+
+        // Simple CSS-based pie chart using conic gradient
+        pieContainer.innerHTML = `
+          <div class="flex items-center gap-8">
+            <div class="relative w-48 h-48">
+              <div class="w-full h-full rounded-full" style="background: conic-gradient(
+                #ffa500 0% ${inputPercent}%,
+                #ffa50050 ${inputPercent}% 100%
+              )"></div>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <div class="w-32 h-32 rounded-full bg-surface-light dark:bg-surface-dark"></div>
+              </div>
+            </div>
+            <div class="flex flex-col gap-4">
+              <div class="flex items-center gap-3">
+                <div class="w-4 h-4 rounded-sm bg-primary"></div>
+                <div>
+                  <p class="text-sm font-medium">Input Tokens</p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatCurrency(inputCost)} (${inputPercent}%)</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="w-4 h-4 rounded-sm bg-primary/30"></div>
+                <div>
+                  <p class="text-sm font-medium">Output Tokens</p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatCurrency(outputCost)} (${outputPercent}%)</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
     }
 
-    const inputPercent = (inputCost / total * 100).toFixed(1);
-    const outputPercent = (outputCost / total * 100).toFixed(1);
+    // Render quota gauges
+    if (gaugesContainer) {
+      this.renderQuotaGauges(gaugesContainer, result);
+    }
+  },
 
-    // Simple CSS-based pie chart using conic gradient
-    pieContainer.innerHTML = `
-      <div class="flex items-center gap-8">
-        <div class="relative w-48 h-48">
-          <div class="w-full h-full rounded-full" style="background: conic-gradient(
-            #ffa500 0% ${inputPercent}%,
-            #ffa50050 ${inputPercent}% 100%
-          )"></div>
-          <div class="absolute inset-0 flex items-center justify-center">
-            <div class="w-32 h-32 rounded-full bg-surface-light dark:bg-surface-dark"></div>
+  /**
+   * Render radial gauge charts for quota usage
+   */
+  renderQuotaGauges(container, result) {
+    const model = result.model;
+    const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
+
+    // Convert requests to per-minute based on timeframe
+    let requestsPerMinute = this.sharedConfig.requests;
+    switch (this.currentTimeframe) {
+      case 'hour': requestsPerMinute = this.sharedConfig.requests / 60; break;
+      case 'day': requestsPerMinute = this.sharedConfig.requests / (60 * 24); break;
+      case 'month': requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30); break;
+      case 'total': requestsPerMinute = this.sharedConfig.requests / 60; break;
+    }
+
+    const tokensPerMinute = totalTokens * requestsPerMinute;
+
+    // Calculate usage percentages
+    const contextUsage = model.context_window ? Math.min((totalTokens / model.context_window * 100), 150) : 0;
+    const rpmUsage = model.rpm_limit ? Math.min((requestsPerMinute / model.rpm_limit * 100), 150) : null;
+    const tpmUsage = model.tpm_limit ? Math.min((tokensPerMinute / model.tpm_limit * 100), 150) : null;
+
+    const gauges = [
+      { label: 'Context', value: contextUsage, max: model.context_window, current: totalTokens },
+      { label: 'RPM', value: rpmUsage, max: model.rpm_limit, current: Math.round(requestsPerMinute) },
+      { label: 'TPM', value: tpmUsage, max: model.tpm_limit, current: Math.round(tokensPerMinute) }
+    ];
+
+    container.innerHTML = gauges.map(gauge => {
+      if (gauge.value === null) {
+        return `
+          <div class="flex flex-col items-center gap-2">
+            <div class="radial-gauge opacity-30">
+              ${this.createRadialGaugeSVG(0, '#9ca3af')}
+            </div>
+            <p class="text-xs font-medium text-text-light/70 dark:text-text-dark/70">${gauge.label}</p>
+            <p class="text-xs text-text-light/60 dark:text-text-dark/60">N/A</p>
           </div>
-        </div>
-        <div class="flex flex-col gap-4">
-          <div class="flex items-center gap-3">
-            <div class="w-4 h-4 rounded-sm bg-primary"></div>
-            <div>
-              <p class="text-sm font-medium">Input Tokens</p>
-              <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatCurrency(inputCost)} (${inputPercent}%)</p>
+        `;
+      }
+
+      const percentage = gauge.value;
+      let color = '#10b981'; // green
+      if (percentage > 100) color = '#ef4444'; // red
+      else if (percentage > 80) color = '#f59e0b'; // yellow
+
+      return `
+        <div class="flex flex-col items-center gap-2">
+          <div class="radial-gauge">
+            ${this.createRadialGaugeSVG(percentage, color)}
+            <div class="radial-gauge-text">
+              <p class="text-lg font-bold" style="color: ${color}">${percentage.toFixed(0)}%</p>
             </div>
           </div>
-          <div class="flex items-center gap-3">
-            <div class="w-4 h-4 rounded-sm bg-primary/30"></div>
-            <div>
-              <p class="text-sm font-medium">Output Tokens</p>
-              <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatCurrency(outputCost)} (${outputPercent}%)</p>
-            </div>
-          </div>
+          <p class="text-xs font-medium text-text-light/70 dark:text-text-dark/70">${gauge.label}</p>
+          <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatNumber(gauge.current)} / ${Utils.formatNumber(gauge.max)}</p>
         </div>
-      </div>
+      `;
+    }).join('');
+  },
+
+  /**
+   * Create SVG for radial gauge
+   */
+  createRadialGaugeSVG(percentage, color) {
+    const radius = 50;
+    const circumference = 2 * Math.PI * radius;
+    const offset = circumference - (Math.min(percentage, 100) / 100) * circumference;
+
+    return `
+      <svg width="120" height="120" class="radial-gauge-circle">
+        <circle cx="60" cy="60" r="${radius}" stroke-width="10" class="radial-gauge-bg"></circle>
+        <circle cx="60" cy="60" r="${radius}" stroke-width="10"
+                class="radial-gauge-progress"
+                stroke="${color}"
+                stroke-dasharray="${circumference}"
+                stroke-dashoffset="${offset}"></circle>
+      </svg>
     `;
   },
 
@@ -660,7 +853,7 @@ const App = {
     const tbody = document.getElementById('comparison-table-body');
     if (!tbody) return;
 
-    tbody.innerHTML = results.map((result) => {
+    tbody.innerHTML = results.map((result, index) => {
       const isEnabled = result.enabled;
       const opacity = isEnabled ? '' : 'text-text-light/50 dark:text-text-dark/50';
       const hasErrors = result.validation.warnings.some(w => w.severity === 'error');
@@ -691,10 +884,38 @@ const App = {
       const statusIconHtml = (hasErrors || hasWarnings) ?
         `<span class="material-symbols-outlined text-base ${statusColor} warning-tooltip" data-warning="${warningText}">${statusIcon}</span>` : '';
 
+      // Calculate quota usage
+      const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
+      let requestsPerMinute = this.sharedConfig.requests;
+      switch (this.currentTimeframe) {
+        case 'hour': requestsPerMinute = this.sharedConfig.requests / 60; break;
+        case 'day': requestsPerMinute = this.sharedConfig.requests / (60 * 24); break;
+        case 'month': requestsPerMinute = this.sharedConfig.requests / (60 * 24 * 30); break;
+        case 'total': requestsPerMinute = this.sharedConfig.requests / 60; break;
+      }
+      const tokensPerMinute = totalTokens * requestsPerMinute;
+
+      const contextUsage = result.model.context_window ? (totalTokens / result.model.context_window * 100) : 0;
+      const rpmUsage = result.model.rpm_limit ? (requestsPerMinute / result.model.rpm_limit * 100) : 0;
+      const tpmUsage = result.model.tpm_limit ? (tokensPerMinute / result.model.tpm_limit * 100) : 0;
+
+      // Create expanded content
+      const expandedContent = this.createExpandedRowContent(result, {
+        contextUsage,
+        rpmUsage,
+        tpmUsage,
+        requestsPerMinute,
+        tokensPerMinute,
+        totalTokens
+      });
+
+      const rowId = `row-${index}`;
+
       return `
-        <tr class="border-b border-border-light dark:border-border-dark">
+        <tr class="border-b border-border-light dark:border-border-dark expandable-row" data-row-id="${rowId}">
           <th class="px-6 py-4 font-medium whitespace-nowrap ${opacity}" scope="row">
             <div class="model-name-wrapper">
+              <span class="material-symbols-outlined text-base expand-icon cursor-pointer" data-row-id="${rowId}">expand_more</span>
               ${statusIconHtml}
               <span class="model-tooltip" data-provider="${result.model.provider}">${result.model.model}</span>
             </div>
@@ -710,8 +931,174 @@ const App = {
             ${isEnabled ? Utils.formatCurrency(result.totalCost.totalCost) : '-'}
           </td>
         </tr>
+        <tr id="${rowId}-expanded" class="border-b border-border-light dark:border-border-dark">
+          <td colspan="5" class="p-0">
+            <div class="expanded-content" id="${rowId}-content">
+              ${expandedContent}
+            </div>
+          </td>
+        </tr>
       `;
     }).join('');
+
+    // Add click event listeners for expandable rows
+    this.setupExpandableRows();
+  },
+
+  /**
+   * Create expanded row content with detailed quota breakdown
+   */
+  createExpandedRowContent(result, usage) {
+    const { contextUsage, rpmUsage, tpmUsage, requestsPerMinute, tokensPerMinute, totalTokens } = usage;
+
+    const getUsageColor = (percentage) => {
+      if (percentage > 100) return 'text-red-600 dark:text-red-400';
+      if (percentage > 80) return 'text-yellow-600 dark:text-yellow-400';
+      return 'text-green-600 dark:text-green-400';
+    };
+
+    const getProgressBarColor = (percentage) => {
+      if (percentage > 100) return 'bg-red-500';
+      if (percentage > 80) return 'bg-yellow-500';
+      return 'bg-green-500';
+    };
+
+    // Calculate cost per 1K requests for this model
+    const costPer1k = (result.totalCost.totalCost / this.sharedConfig.requests) * 1000;
+
+    // Calculate monthly projection
+    let monthlyCost = 0;
+    switch (this.currentTimeframe) {
+      case 'minute': monthlyCost = result.totalCost.totalCost * 60 * 24 * 30; break;
+      case 'hour': monthlyCost = result.totalCost.totalCost * 24 * 30; break;
+      case 'day': monthlyCost = result.totalCost.totalCost * 30; break;
+      case 'month': monthlyCost = result.totalCost.totalCost; break;
+      case 'total': monthlyCost = result.totalCost.totalCost; break;
+    }
+
+    return `
+      <div class="p-6 bg-background-light/50 dark:bg-background-dark/50">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Cost Details -->
+          <div>
+            <h4 class="font-semibold text-sm mb-3 text-primary">Cost Details</h4>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span class="text-text-light/70 dark:text-text-dark/70">Input Cost:</span>
+                <span class="font-medium">${result.totalCost.totalInputTokens.toLocaleString()} tokens × ${Utils.formatCurrency(result.model.input_price_per_1m)}/1M = ${Utils.formatCurrency(result.totalCost.totalInputCost)}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-text-light/70 dark:text-text-dark/70">Output Cost:</span>
+                <span class="font-medium">${result.totalCost.totalOutputTokens.toLocaleString()} tokens × ${Utils.formatCurrency(result.model.output_price_per_1m)}/1M = ${Utils.formatCurrency(result.totalCost.totalOutputCost)}</span>
+              </div>
+              <div class="flex justify-between pt-2 border-t border-border-light dark:border-border-dark">
+                <span class="text-text-light/70 dark:text-text-dark/70">Cost per 1K Requests:</span>
+                <span class="font-medium">${Utils.formatCurrency(costPer1k)}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-text-light/70 dark:text-text-dark/70">Monthly Projection:</span>
+                <span class="font-medium">${Utils.formatCurrency(monthlyCost)}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quota Usage -->
+          <div>
+            <h4 class="font-semibold text-sm mb-3 text-primary">Quota Usage</h4>
+            <div class="space-y-3">
+              <!-- Context Usage -->
+              <div>
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-text-light/70 dark:text-text-dark/70">Context Window</span>
+                  <span class="${getUsageColor(contextUsage)} font-medium">${contextUsage.toFixed(1)}%</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="flex-1 h-2 bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
+                    <div class="${getProgressBarColor(contextUsage)} h-full transition-all duration-300" style="width: ${Math.min(contextUsage, 100)}%"></div>
+                  </div>
+                </div>
+                <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-1">${Utils.formatNumber(totalTokens)} / ${Utils.formatNumber(result.model.context_window)}</p>
+              </div>
+
+              <!-- RPM Usage -->
+              ${result.model.rpm_limit ? `
+                <div>
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="text-text-light/70 dark:text-text-dark/70">Requests Per Minute</span>
+                    <span class="${getUsageColor(rpmUsage)} font-medium">${rpmUsage.toFixed(1)}%</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <div class="flex-1 h-2 bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
+                      <div class="${getProgressBarColor(rpmUsage)} h-full transition-all duration-300" style="width: ${Math.min(rpmUsage, 100)}%"></div>
+                    </div>
+                  </div>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-1">${Utils.formatNumber(requestsPerMinute)} / ${Utils.formatNumber(result.model.rpm_limit)}</p>
+                </div>
+              ` : ''}
+
+              <!-- TPM Usage -->
+              ${result.model.tpm_limit ? `
+                <div>
+                  <div class="flex justify-between text-xs mb-1">
+                    <span class="text-text-light/70 dark:text-text-dark/70">Tokens Per Minute</span>
+                    <span class="${getUsageColor(tpmUsage)} font-medium">${tpmUsage.toFixed(1)}%</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <div class="flex-1 h-2 bg-border-light dark:bg-border-dark rounded-full overflow-hidden">
+                      <div class="${getProgressBarColor(tpmUsage)} h-full transition-all duration-300" style="width: ${Math.min(tpmUsage, 100)}%"></div>
+                    </div>
+                  </div>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-1">${Utils.formatNumber(tokensPerMinute)} / ${Utils.formatNumber(result.model.tpm_limit)}</p>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+
+        <!-- Warnings -->
+        ${result.validation.warnings.length > 0 ? `
+          <div class="mt-4 pt-4 border-t border-border-light dark:border-border-dark">
+            <h4 class="font-semibold text-sm mb-2 text-red-600 dark:text-red-400">⚠️ Warnings & Errors</h4>
+            <ul class="space-y-1 text-sm">
+              ${result.validation.warnings.map(w => `
+                <li class="${w.severity === 'error' ? 'text-red-600 dark:text-red-400' : 'text-yellow-600 dark:text-yellow-400'}">
+                  • ${w.message}
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  },
+
+  /**
+   * Setup event listeners for expandable table rows
+   */
+  setupExpandableRows() {
+    document.querySelectorAll('.expandable-row, .expand-icon').forEach(element => {
+      element.addEventListener('click', (e) => {
+        const rowId = element.dataset.rowId || e.target.dataset.rowId;
+        if (!rowId) return;
+
+        const content = document.getElementById(`${rowId}-content`);
+        const icon = document.querySelector(`.expand-icon[data-row-id="${rowId}"]`);
+
+        if (content && icon) {
+          const isOpen = content.classList.contains('open');
+
+          if (isOpen) {
+            content.classList.remove('open');
+            icon.classList.remove('rotated');
+            icon.textContent = 'expand_more';
+          } else {
+            content.classList.add('open');
+            icon.classList.add('rotated');
+            icon.textContent = 'expand_less';
+          }
+        }
+      });
+    });
   },
 
   /**

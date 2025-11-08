@@ -134,6 +134,82 @@
     align-items: center;
     gap: 6px;
   }
+
+  /* Radial gauge styles */
+  .radial-gauge {
+    position: relative;
+    width: 120px;
+    height: 120px;
+  }
+
+  .radial-gauge-circle {
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+  }
+
+  .radial-gauge-bg {
+    fill: none;
+    stroke: #e5e7eb;
+  }
+
+  .dark .radial-gauge-bg {
+    stroke: #374151;
+  }
+
+  .radial-gauge-progress {
+    fill: none;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.5s ease-in-out, stroke 0.3s ease;
+  }
+
+  .radial-gauge-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+
+  /* Expandable table row styles */
+  .expandable-row {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+
+  .expandable-row:hover {
+    background-color: rgba(255, 165, 0, 0.05);
+  }
+
+  .expanded-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-in-out;
+  }
+
+  .expanded-content.open {
+    max-height: 500px;
+  }
+
+  .expand-icon {
+    transition: transform 0.3s ease;
+  }
+
+  .expand-icon.rotated {
+    transform: rotate(180deg);
+  }
+
+  /* Quota overlay styles for multi-model chart */
+  .quota-overlay-line {
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    border-top: 2px dashed rgba(239, 68, 68, 0.5);
+    pointer-events: none;
+  }
+
+  .dark .quota-overlay-line {
+    border-top-color: rgba(248, 113, 113, 0.5);
+  }
 </style>
 <script id="tailwind-config">
   tailwind.config = {
@@ -346,7 +422,7 @@
         <!-- Cost Analysis Tab Content -->
         <div id="cost-view" class="tab-content">
           <!-- Summary Cards -->
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
               <h3 class="font-medium text-sm text-text-light/70 dark:text-text-dark/70 mb-1">
                 Estimated Cost <span class="timeframe-label">/ hour</span>
@@ -364,6 +440,11 @@
               <p id="monthly-cost" class="text-2xl font-bold">$0.00</p>
               <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-2">Extrapolated estimate</p>
             </div>
+            <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
+              <h3 class="font-medium text-sm text-text-light/70 dark:text-text-dark/70 mb-1">Quota Health</h3>
+              <p id="quota-health" class="text-2xl font-bold">-</p>
+              <p id="quota-health-detail" class="text-xs text-text-light/60 dark:text-text-dark/60 mt-2">No models selected</p>
+            </div>
           </div>
 
           <!-- Charts Container -->
@@ -375,9 +456,22 @@
           </div>
 
           <div id="single-model-chart" class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark hidden mb-8">
-            <h3 class="font-medium mb-6">Cost Breakdown</h3>
-            <div id="chart-pie" class="flex items-center justify-center h-48">
-              <canvas id="pie-canvas"></canvas>
+            <h3 class="font-medium mb-6">Cost & Quota Breakdown</h3>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <!-- Cost Breakdown Pie Chart -->
+              <div>
+                <h4 class="text-sm font-medium text-text-light/70 dark:text-text-dark/70 mb-4">Cost Distribution</h4>
+                <div id="chart-pie" class="flex items-center justify-center h-48">
+                  <canvas id="pie-canvas"></canvas>
+                </div>
+              </div>
+              <!-- Quota Usage Gauges -->
+              <div>
+                <h4 class="text-sm font-medium text-text-light/70 dark:text-text-dark/70 mb-4">Quota Usage</h4>
+                <div id="quota-gauges" class="flex items-center justify-around gap-4">
+                  <!-- Gauges will be populated here -->
+                </div>
+              </div>
             </div>
           </div>
 
