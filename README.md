@@ -21,30 +21,17 @@ A comprehensive web-based calculator for estimating and comparing costs across d
 - **Visual Cost Breakdown**: Bar charts and detailed tables for comparison
 - **Unit Conversions**: Automatic conversion between tokens, characters, and words
 
-### Supported Models (examples)
-
-#### OpenAI
-- GPT-4o, GPT-4o-mini
-- GPT-4-Turbo, GPT-4
-
-#### AWS
-- Claude 3.5 Sonnet
-- Claude 3 Opus, Sonnet, Haiku
 
 ## Installation
 
 ### Quick Start (Local)
 
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/llm-cost-calculator.git
-cd llm-cost-calculator
-```
+1. Clone the repository
 
 2. Open `index.html` in your browser:
 ```bash
 # Using Python's built-in server
-python3 -m http.server 8000
+python -m http.server 8000
 
 # Or using Node.js http-server
 npx http-server
@@ -88,9 +75,8 @@ The calculator works entirely in the browser with no build step or dependencies.
 
 ### Quota Warnings
 
-The calculator automatically validates your configuration against provider limits:
-- ⚠️ **Warning** (Yellow): Usage is 80-100% of limit
-- ❌ **Error** (Red): Usage exceeds limit
+The calculator automatically validates your configuration against provider limits.
+
 
 ## File Structure
 
@@ -136,34 +122,6 @@ The calculator uses these approximations:
 
 These are estimates and may vary by tokenizer. For precise calculations, use token units.
 
-## Browser Compatibility
-
-- Chrome/Edge 90+
-- Firefox 88+
-- Safari 14+
-- Opera 76+
-
-Requires a modern browser with ES6+ support.
-
-## Technologies Used
-
-- **HTML5/CSS3**: Structure and styling
-- **Vanilla JavaScript**: No framework dependencies
-- **Tailwind CSS**: Utility-first CSS framework (via CDN)
-- **Google Fonts**: Inter typeface
-- **Material Symbols**: Icon library
-
-## Features Roadmap
-
-### Planned Features
-- [ ] Export results to CSV/PDF
-- [ ] Save/load configurations
-- [ ] Custom model pricing
-- [ ] Batch estimation
-- [ ] API cost tracking integration
-- [ ] Historical price trends
-- [ ] Cost optimization suggestions
-
 ## Contributing
 
 Contributions are welcome! To contribute:
@@ -190,23 +148,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 Pricing information is approximate and may not reflect current provider pricing. Always verify costs with the official provider documentation before making business decisions.
 
 Pricing sources:
-- OpenAI: https://openai.com/pricing
-- Anthropic: https://www.anthropic.com/pricing
-- Google: https://cloud.google.com/vertex-ai/pricing
-- Other providers: Check respective websites
-
-## Acknowledgments
-
-- Design inspired by modern web application patterns
-- Pricing data compiled from official provider documentation
-- Built with a focus on usability and accuracy
-
-## Support
-
-For issues, questions, or suggestions:
-- Open an issue on GitHub
-- Check existing issues for similar problems
-- Provide detailed information about your environment and the problem
+- OpenAI: https://openai.com/api/pricing/
+- Anthropic: https://claude.com/pricing#api
 
 ---
 
