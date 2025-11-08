@@ -76,6 +76,109 @@
     <div class="grid grid-cols-1 lg:grid-cols-6 gap-8">
       <!-- Left Column: Inputs -->
       <div class="lg:col-span-2 flex flex-col gap-6">
+        <!-- Usage Pattern Presets -->
+        <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="material-symbols-outlined text-primary">auto_awesome</span>
+            <h3 class="font-bold text-lg">Usage Presets</h3>
+          </div>
+          <p class="text-xs text-text-light/60 dark:text-text-dark/60 mb-4">Select a common use case to automatically configure parameters</p>
+
+          <div class="grid grid-cols-1 gap-3">
+            <!-- Customer Support Preset -->
+            <button class="usage-preset-btn text-left p-3 rounded-lg border-2 border-border-light dark:border-border-dark hover:border-primary/50 hover:bg-background-light dark:hover:bg-background-dark transition-all"
+                    data-preset="support"
+                    data-input="400"
+                    data-output="200"
+                    data-rpm="1"
+                    data-duration="day">
+              <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-primary mt-0.5">support_agent</span>
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-sm">Customer Support</p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">400 in / 200 out • 1 RPM</p>
+                </div>
+              </div>
+            </button>
+
+            <!-- Content Generation Preset -->
+            <button class="usage-preset-btn text-left p-3 rounded-lg border-2 border-border-light dark:border-border-dark hover:border-primary/50 hover:bg-background-light dark:hover:bg-background-dark transition-all"
+                    data-preset="content"
+                    data-input="300"
+                    data-output="1000"
+                    data-rpm="0.1"
+                    data-duration="day">
+              <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-primary mt-0.5">edit_note</span>
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-sm">Content Generation</p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">300 in / 1000 out • 0.1 RPM</p>
+                </div>
+              </div>
+            </button>
+
+            <!-- Data Analysis Preset -->
+            <button class="usage-preset-btn text-left p-3 rounded-lg border-2 border-border-light dark:border-border-dark hover:border-primary/50 hover:bg-background-light dark:hover:bg-background-dark transition-all"
+                    data-preset="analysis"
+                    data-input="3000"
+                    data-output="500"
+                    data-rpm="0.05"
+                    data-duration="day">
+              <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-primary mt-0.5">analytics</span>
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-sm">Data Analysis</p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">3000 in / 500 out • 0.05 RPM</p>
+                </div>
+              </div>
+            </button>
+
+            <!-- Document Summarization Preset -->
+            <button class="usage-preset-btn text-left p-3 rounded-lg border-2 border-border-light dark:border-border-dark hover:border-primary/50 hover:bg-background-light dark:hover:bg-background-dark transition-all"
+                    data-preset="summarization"
+                    data-input="10000"
+                    data-output="800"
+                    data-rpm="0.02"
+                    data-duration="day">
+              <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-primary mt-0.5">summarize</span>
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-sm">Document Summarization</p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">10k in / 800 out • 0.02 RPM</p>
+                </div>
+              </div>
+            </button>
+
+            <!-- Code Assistant Preset -->
+            <button class="usage-preset-btn text-left p-3 rounded-lg border-2 border-border-light dark:border-border-dark hover:border-primary/50 hover:bg-background-light dark:hover:bg-background-dark transition-all"
+                    data-preset="code"
+                    data-input="2000"
+                    data-output="1500"
+                    data-rpm="0.15"
+                    data-duration="day">
+              <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-primary mt-0.5">code</span>
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-sm">Code Assistant</p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">2000 in / 1500 out • 0.15 RPM</p>
+                </div>
+              </div>
+            </button>
+
+            <!-- Custom Preset -->
+            <button class="usage-preset-btn text-left p-3 rounded-lg border-2 border-border-light dark:border-border-dark hover:border-primary/50 hover:bg-background-light dark:hover:bg-background-dark transition-all"
+                    data-preset="custom">
+              <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-primary mt-0.5">settings</span>
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-sm">Custom Configuration</p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">Define your own parameters</p>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+
         <!-- Usage Input Card -->
         <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
           <div class="flex items-center gap-2 mb-4">
@@ -107,9 +210,9 @@
             <div class="flex flex-col gap-2">
               <label class="flex items-center justify-between">
                 <span class="text-sm font-medium">Requests Per Minute (RPM)</span>
-                <input type="number" id="shared-rpm" value="20" min="1" max="250" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
+                <input type="number" id="shared-rpm" value="20" min="0.01" max="250" step="0.01" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
               </label>
-              <input type="range" id="shared-rpm-slider" value="20" min="1" max="250" step="1" aria-label="Requests Per Minute slider" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
+              <input type="range" id="shared-rpm-slider" value="20" min="0.01" max="250" step="0.01" aria-label="Requests Per Minute slider" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
               <p class="text-xs text-text-light/60 dark:text-text-dark/60">Request rate for throughput validation (max: <span id="rpm-limit-display">250</span>)</p>
             </div>
 
@@ -130,6 +233,13 @@
                     <option value="day" selected>Per Day</option>
                     <option value="month">Per Month</option>
                   </select>
+                  <div id="days-per-month-container" class="hidden">
+                    <label class="flex items-center justify-between mt-2">
+                      <span class="text-xs font-medium text-text-light/70 dark:text-text-dark/70">Active Days per Month</span>
+                      <input type="number" id="days-per-month" value="30" min="1" max="31" class="w-20 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
+                    </label>
+                    <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-1">Adjust for part-time operations (e.g., 22 for 5-day work week)</p>
+                  </div>
                 </div>
               </div>
 

@@ -14,7 +14,9 @@ const App = {
     rpm: 20, // Requests per minute
     calcMode: 'duration', // 'duration' or 'total'
     duration: 'day', // 'hour', 'day', or 'month'
-    totalRequests: 100 // For 'total' mode
+    totalRequests: 100, // For 'total' mode
+    daysPerMonth: 30, // Number of active days per month
+    selectedPreset: 'custom' // Track which preset is selected
   },
   globalInputUnit: 'tokens',
   globalOutputUnit: 'tokens',
@@ -40,6 +42,8 @@ const App = {
       this.renderModelSelector();
       this.setupEventListeners();
       this.updateDynamicLimits(); // Set initial dynamic limits
+      this.toggleDaysPerMonthField(); // Initialize days per month field visibility
+      this.selectPreset('custom'); // Mark custom as initially selected
 
       // Initialize with default model selection
       const gpt4o = this.models.find(m => m.model === 'GPT-5');
@@ -621,6 +625,7 @@ const App = {
         sharedInputSlider.value = value;
       }
       this.sharedConfig.inputTokens = value;
+      this.selectPreset('custom'); // Switch to custom when user manually changes
       this.calculate();
     });
 
@@ -630,6 +635,7 @@ const App = {
         sharedInputTokens.value = value;
       }
       this.sharedConfig.inputTokens = value;
+      this.selectPreset('custom'); // Switch to custom when user manually changes
       this.calculate();
     });
 
@@ -643,6 +649,7 @@ const App = {
         sharedOutputSlider.value = value;
       }
       this.sharedConfig.outputTokens = value;
+      this.selectPreset('custom'); // Switch to custom when user manually changes
       this.calculate();
     });
 
@@ -652,6 +659,7 @@ const App = {
         sharedOutputTokens.value = value;
       }
       this.sharedConfig.outputTokens = value;
+      this.selectPreset('custom'); // Switch to custom when user manually changes
       this.calculate();
     });
 
@@ -660,21 +668,23 @@ const App = {
     const sharedRpmSlider = document.getElementById('shared-rpm-slider');
 
     sharedRpm?.addEventListener('input', (e) => {
-      const value = parseInt(e.target.value) || 1;
+      const value = parseFloat(e.target.value) || 0.01;
       if (sharedRpmSlider) {
         sharedRpmSlider.value = value;
       }
       this.sharedConfig.rpm = value;
+      this.selectPreset('custom'); // Switch to custom when user manually changes
       this.updateRuntimeEstimate();
       this.calculate();
     });
 
     sharedRpmSlider?.addEventListener('input', (e) => {
-      const value = parseInt(e.target.value) || 1;
+      const value = parseFloat(e.target.value) || 0.01;
       if (sharedRpm) {
         sharedRpm.value = value;
       }
       this.sharedConfig.rpm = value;
+      this.selectPreset('custom'); // Switch to custom when user manually changes
       this.updateRuntimeEstimate();
       this.calculate();
     });
@@ -704,6 +714,14 @@ const App = {
     // Duration selector
     document.getElementById('duration-select')?.addEventListener('change', (e) => {
       this.sharedConfig.duration = e.target.value;
+      this.toggleDaysPerMonthField();
+      this.calculate();
+    });
+
+    // Days per month input
+    document.getElementById('days-per-month')?.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value) || 1;
+      this.sharedConfig.daysPerMonth = Math.max(1, Math.min(31, value));
       this.calculate();
     });
 
@@ -792,6 +810,115 @@ const App = {
       const panel = document.getElementById('advanced-panel');
       panel.classList.toggle('hidden');
     });
+
+    // Usage preset buttons
+    document.querySelectorAll('.usage-preset-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const button = e.currentTarget;
+        const preset = button.dataset.preset;
+
+        // Handle custom preset (just marks it as selected)
+        if (preset === 'custom') {
+          this.selectPreset('custom');
+          return;
+        }
+
+        // Apply preset values
+        const inputTokens = parseInt(button.dataset.input);
+        const outputTokens = parseInt(button.dataset.output);
+        const rpm = parseFloat(button.dataset.rpm);
+        const duration = button.dataset.duration;
+
+        this.applyPreset(preset, inputTokens, outputTokens, rpm, duration);
+      });
+    });
+  },
+
+  /**
+   * Apply a usage preset
+   */
+  applyPreset(presetName, inputTokens, outputTokens, rpm, duration) {
+    // Update config
+    this.sharedConfig.inputTokens = inputTokens;
+    this.sharedConfig.outputTokens = outputTokens;
+    this.sharedConfig.rpm = rpm;
+    this.sharedConfig.duration = duration;
+    this.sharedConfig.calcMode = 'duration';
+    this.sharedConfig.selectedPreset = presetName;
+
+    // Update UI inputs
+    document.getElementById('shared-input-tokens').value = inputTokens;
+    document.getElementById('shared-input-slider').value = inputTokens;
+    document.getElementById('shared-output-tokens').value = outputTokens;
+    document.getElementById('shared-output-slider').value = outputTokens;
+    document.getElementById('shared-rpm').value = rpm;
+    document.getElementById('shared-rpm-slider').value = rpm;
+    document.getElementById('duration-select').value = duration;
+    document.getElementById('calc-mode-duration').checked = true;
+
+    // Enable/disable appropriate inputs
+    document.getElementById('total-requests-input')?.setAttribute('disabled', 'disabled');
+    document.getElementById('duration-select')?.removeAttribute('disabled');
+
+    // Toggle days per month field visibility
+    this.toggleDaysPerMonthField();
+
+    // Update preset selection visual state
+    this.selectPreset(presetName);
+
+    // Recalculate
+    this.calculate();
+  },
+
+  /**
+   * Mark a preset as selected
+   */
+  selectPreset(presetName) {
+    this.sharedConfig.selectedPreset = presetName;
+
+    // Update visual state of preset buttons
+    document.querySelectorAll('.usage-preset-btn').forEach(btn => {
+      const btnPreset = btn.dataset.preset;
+      const isSelected = btnPreset === presetName;
+
+      if (isSelected) {
+        btn.classList.add('border-primary/50', 'bg-primary/5', 'dark:bg-primary/10', 'preset-selected');
+        btn.classList.remove('border-border-light', 'dark:border-border-dark');
+
+        // Add checkmark if not already there
+        if (!btn.querySelector('.material-symbols-outlined:last-child')) {
+          const checkmark = document.createElement('span');
+          checkmark.className = 'material-symbols-outlined text-primary text-sm';
+          checkmark.textContent = 'check_circle';
+          btn.querySelector('.flex').appendChild(checkmark);
+        }
+      } else {
+        btn.classList.remove('border-primary/50', 'bg-primary/5', 'dark:bg-primary/10', 'preset-selected');
+        btn.classList.add('border-border-light', 'dark:border-border-dark');
+
+        // Remove checkmark
+        const checkmark = btn.querySelector('.material-symbols-outlined:last-child');
+        if (checkmark && checkmark.textContent === 'check_circle') {
+          checkmark.remove();
+        }
+      }
+    });
+  },
+
+  /**
+   * Toggle visibility of days per month field based on duration selection
+   */
+  toggleDaysPerMonthField() {
+    const daysPerMonthContainer = document.getElementById('days-per-month-container');
+    const duration = this.sharedConfig.duration;
+
+    if (daysPerMonthContainer) {
+      if (duration === 'month') {
+        daysPerMonthContainer.classList.remove('hidden');
+      } else {
+        daysPerMonthContainer.classList.add('hidden');
+      }
+    }
   },
 
 
@@ -911,6 +1038,7 @@ const App = {
       calcMode: this.sharedConfig.calcMode,
       duration: this.sharedConfig.duration,
       totalRequests: this.sharedConfig.totalRequests,
+      daysPerMonth: this.sharedConfig.daysPerMonth,
       enabled: true
     }));
 
@@ -1636,7 +1764,9 @@ const App = {
       rpm: 20,
       calcMode: 'duration',
       duration: 'day',
-      totalRequests: 100
+      totalRequests: 100,
+      daysPerMonth: 30,
+      selectedPreset: 'custom'
     };
 
     // Reset UI inputs
@@ -1663,6 +1793,10 @@ const App = {
       totalRequestsInput.disabled = true;
     }
 
+    // Reset days per month
+    const daysPerMonth = document.getElementById('days-per-month');
+    if (daysPerMonth) daysPerMonth.value = 30;
+
     // Reset unit selectors
     const globalInputUnit = document.getElementById('global-input-unit');
     const globalOutputUnit = document.getElementById('global-output-unit');
@@ -1688,6 +1822,10 @@ const App = {
     this.updateSelectedModelsDisplay();
     this.updateModelSelectorCheckboxes();
     this.clearResults();
+
+    // Reset preset selection and days per month visibility
+    this.selectPreset('custom');
+    this.toggleDaysPerMonthField();
 
     // Reinitialize with default model
     const gpt5 = this.models.find(m => m.model === 'GPT-5');

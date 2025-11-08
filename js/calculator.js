@@ -47,6 +47,7 @@ const Calculator = {
    * @param {string} options.mode - 'duration' or 'total'
    * @param {string} options.duration - 'hour', 'day', or 'month' (if mode is 'duration')
    * @param {number} options.totalRequests - Total number of requests (if mode is 'total')
+   * @param {number} options.daysPerMonth - Number of active days per month (default: 30)
    * @param {Object} model - Model data (needed for PTU pricing)
    * @returns {Object} Cost breakdown with totals
    */
@@ -61,7 +62,7 @@ const Calculator = {
       }
     }
 
-    const { mode = 'duration', duration = 'day', totalRequests = 10000 } = options;
+    const { mode = 'duration', duration = 'day', totalRequests = 10000, daysPerMonth = 30 } = options;
 
     let multiplier = 1;
     let period = duration;
@@ -84,7 +85,7 @@ const Calculator = {
           multiplier = 60 * 24; // 1,440 minutes
           break;
         case 'month':
-          multiplier = 60 * 24 * 30; // 43,200 minutes
+          multiplier = 60 * 24 * daysPerMonth; // Use configured days per month
           break;
         default:
           multiplier = 60 * 24; // Default to day
@@ -104,16 +105,16 @@ const Calculator = {
       // Prorate PTU cost based on mode and duration
       if (mode === 'total') {
         // For total requests, prorate based on runtime
-        const monthsRuntime = runtimeMinutes / (30 * 24 * 60);
+        const monthsRuntime = runtimeMinutes / (daysPerMonth * 24 * 60);
         totalCost = ptuMonthlyPrice * monthsRuntime;
       } else {
         // Prorate based on duration
         switch (duration) {
           case 'hour':
-            totalCost = ptuMonthlyPrice / (30 * 24);
+            totalCost = ptuMonthlyPrice / (daysPerMonth * 24);
             break;
           case 'day':
-            totalCost = ptuMonthlyPrice / 30;
+            totalCost = ptuMonthlyPrice / daysPerMonth;
             break;
           case 'month':
             totalCost = ptuMonthlyPrice;
@@ -294,7 +295,8 @@ const Calculator = {
       const calcOptions = {
         mode: comp.calcMode || 'duration',
         duration: comp.duration || 'day',
-        totalRequests: comp.totalRequests || 10000
+        totalRequests: comp.totalRequests || 10000,
+        daysPerMonth: comp.daysPerMonth || 30
       };
 
       const totalCost = this.calculateTotalCost(
