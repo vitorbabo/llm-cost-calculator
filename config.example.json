@@ -12,14 +12,6 @@
     "enabled": false,
     "text": "Get API Key",
     "url": "https://platform.openai.com/api-keys",
-    "providers": {
-      "OpenAI": "https://platform.openai.com/api-keys",
-      "Anthropic": "https://console.anthropic.com/settings/keys",
-      "Google": "https://makersuite.google.com/app/apikey",
-      "Cohere": "https://dashboard.cohere.com/api-keys",
-      "Mistral": "https://console.mistral.ai/api-keys/",
-      "comment": "Add provider-specific API key URLs here"
-    },
     "comment": "Set enabled to true to show an API key button in the header"
   },
   "theme": {
