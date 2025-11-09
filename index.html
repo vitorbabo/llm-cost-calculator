@@ -314,10 +314,22 @@
         </div>
 
         <!-- Action Buttons -->
-        <div class="flex gap-4">
+        <div class="flex flex-col gap-3">
           <button id="reset-btn" class="w-full bg-border-light dark:bg-border-dark hover:bg-border-light/70 dark:hover:bg-border-dark/70 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors">
             Reset
           </button>
+
+          <!-- Export Buttons -->
+          <div class="flex gap-2">
+            <button id="export-csv-btn" class="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-xs text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Export results to CSV">
+              <span class="material-symbols-outlined icon-download text-sm">download</span>
+              <span>Export CSV</span>
+            </button>
+            <button id="export-pdf-btn" class="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-xs text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Export results to PDF">
+              <span class="material-symbols-outlined icon-pdf text-sm">picture_as_pdf</span>
+              <span>Export PDF</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -353,26 +365,46 @@
 
           <!-- Model Selection Panel -->
           <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark mb-8">
-            <div class="flex items-center justify-between mb-4">
+            <button id="model-selector-toggle" class="flex items-center justify-between w-full mb-4 cursor-pointer">
               <div class="flex items-center gap-2">
                 <span class="material-symbols-outlined text-primary">compare_arrows</span>
                 <h3 class="font-bold text-lg">Model Selection</h3>
               </div>
-              <button id="add-custom-model-btn" class="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors" title="Add custom model with your own pricing">
-                <span class="material-symbols-outlined text-sm">add</span>
-                <span>Custom Model</span>
-              </button>
-            </div>
-            <p class="text-xs text-text-light/60 dark:text-text-dark/60 mb-4">Select multiple models to compare (you can choose multiple models from the same provider)</p>
+              <span class="material-symbols-outlined text-text-light/40 dark:text-text-dark/40">expand_more</span>
+            </button>
 
-            <!-- Provider Tabs -->
-            <div class="mb-4 flex flex-wrap gap-2 pb-2 border-b border-border-light dark:border-border-dark" id="provider-tabs">
-              <!-- Tabs will be populated dynamically -->
+            <!-- Selected Models Display (shown when collapsed) -->
+            <div id="selected-models-display" class="hidden mb-4">
+              <div class="flex flex-wrap gap-2" id="selected-models-pills">
+                <!-- Selected model pills will be displayed here -->
+              </div>
             </div>
 
-            <!-- Model Selection Pills -->
-            <div id="model-selector" class="max-h-96 overflow-y-auto p-4 border border-border-light dark:border-border-dark rounded-lg bg-background-light dark:bg-background-dark">
-              <!-- Models will be populated here grouped by provider -->
+            <!-- Full Model Selector (shown when expanded) -->
+            <div id="model-selector-panel">
+              <div class="flex items-center justify-between mb-4">
+                <p class="text-xs text-text-light/60 dark:text-text-dark/60">Select multiple models to compare (you can choose multiple models from the same provider)</p>
+                <div class="flex items-center gap-2">
+                  <button id="clear-models-btn" class="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-border-light dark:bg-border-dark text-text-light dark:text-text-dark rounded-lg hover:bg-border-light/70 dark:hover:bg-border-dark/70 transition-colors" title="Clear all selected models">
+                    <span class="material-symbols-outlined text-sm">clear_all</span>
+                    <span>Clear All</span>
+                  </button>
+                  <button id="add-custom-model-btn" class="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors" title="Add custom model with your own pricing">
+                    <span class="material-symbols-outlined text-sm">add</span>
+                    <span>Custom Model</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Provider Tabs -->
+              <div class="mb-4 flex flex-wrap gap-2 pb-2 border-b border-border-light dark:border-border-dark" id="provider-tabs">
+                <!-- Tabs will be populated dynamically -->
+              </div>
+
+              <!-- Model Selection Pills -->
+              <div id="model-selector" class="max-h-96 overflow-y-auto p-4 border border-border-light dark:border-border-dark rounded-lg bg-background-light dark:bg-background-dark">
+                <!-- Models will be populated here grouped by provider -->
+              </div>
             </div>
           </div>
 
@@ -397,18 +429,6 @@
                 </tr>
               </tbody>
             </table>
-          </div>
-
-          <!-- Export Buttons -->
-          <div class="flex justify-end gap-3">
-            <button id="export-csv-btn" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-xs text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Export results to CSV">
-              <span class="material-symbols-outlined icon-download">download</span>
-              <span>Export CSV</span>
-            </button>
-            <button id="export-pdf-btn" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-xs text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Export results to PDF">
-              <span class="material-symbols-outlined icon-pdf">picture_as_pdf</span>
-              <span>Export PDF</span>
-            </button>
           </div>
         </div>
       </div>

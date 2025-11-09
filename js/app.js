@@ -18,7 +18,8 @@ const App = {
     totalRequests: 100, // For 'total' mode
     daysPerMonth: 30, // Number of active days per month
     selectedPreset: 'custom', // Track which preset is selected
-    presetsCollapsed: true // Track if presets are collapsed
+    presetsCollapsed: true, // Track if presets are collapsed
+    modelSelectorCollapsed: true // Track if model selector is collapsed
   },
   globalInputUnit: 'tokens',
   globalOutputUnit: 'tokens',
@@ -49,6 +50,7 @@ const App = {
       this.selectPreset('custom'); // Mark custom as initially selected
       this.updateRPMDisplay(); // Initialize RPM display
       this.togglePresetsCollapsed(); // Initialize collapsed state
+      this.toggleModelSelectorCollapsed(); // Initialize model selector collapsed state
 
       // Initialize with default model selection
       const gpt4o = this.models.find(m => m.model === 'GPT-5');
@@ -642,6 +644,7 @@ const App = {
     this.selectedModels.push(model);
     this.updateSelectedModelsDisplay();
     this.renderModelSelector(); // Re-render pills with updated selection
+    this.renderSelectedModelsPills(); // Update collapsed view pills
     this.updateDynamicLimits(); // Update limits based on new selection
     this.calculate();
   },
@@ -655,6 +658,7 @@ const App = {
     );
     this.updateSelectedModelsDisplay();
     this.renderModelSelector(); // Re-render pills with updated selection
+    this.renderSelectedModelsPills(); // Update collapsed view pills
     this.updateDynamicLimits(); // Update limits based on new selection
     this.calculate();
   },
@@ -923,6 +927,17 @@ const App = {
       this.togglePresetsCollapsed();
     });
 
+    // Model selector toggle
+    document.getElementById('model-selector-toggle')?.addEventListener('click', () => {
+      this.sharedConfig.modelSelectorCollapsed = !this.sharedConfig.modelSelectorCollapsed;
+      this.toggleModelSelectorCollapsed();
+    });
+
+    // Clear all models button
+    document.getElementById('clear-models-btn')?.addEventListener('click', () => {
+      this.clearAllModels();
+    });
+
     // Usage preset buttons
     document.querySelectorAll('.usage-preset-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -1134,6 +1149,81 @@ const App = {
     }
   },
 
+  /**
+   * Toggle collapsed state of model selector section
+   */
+  toggleModelSelectorCollapsed() {
+    const modelSelectorPanel = document.getElementById('model-selector-panel');
+    const selectedModelsDisplay = document.getElementById('selected-models-display');
+    const toggleIcon = document.querySelector('#model-selector-toggle .material-symbols-outlined:last-child');
+
+    if (!modelSelectorPanel || !selectedModelsDisplay || !toggleIcon) return;
+
+    if (this.sharedConfig.modelSelectorCollapsed) {
+      // Collapsed state - hide full panel, show only selected models
+      modelSelectorPanel.classList.add('hidden');
+      selectedModelsDisplay.classList.remove('hidden');
+      toggleIcon.textContent = 'expand_more';
+      this.renderSelectedModelsPills();
+    } else {
+      // Expanded state - show full panel, hide selected models display
+      modelSelectorPanel.classList.remove('hidden');
+      selectedModelsDisplay.classList.add('hidden');
+      toggleIcon.textContent = 'expand_less';
+    }
+  },
+
+  /**
+   * Render selected model pills in the collapsed view
+   */
+  renderSelectedModelsPills() {
+    const container = document.getElementById('selected-models-pills');
+    if (!container) return;
+
+    if (this.selectedModels.length === 0) {
+      container.innerHTML = '<p class="text-xs text-text-light/60 dark:text-text-dark/60">No models selected</p>';
+      return;
+    }
+
+    container.innerHTML = this.selectedModels.map(model => {
+      const isCustom = model.isCustom === true;
+      const hasTier = model.tier && !isCustom;
+
+      return `
+        <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-white text-xs border border-primary">
+          <span class="font-medium whitespace-nowrap">${model.model}</span>
+          ${hasTier ? `<span class="material-symbols-outlined text-xs text-white" title="${model.tier}">${model.tierIcon}</span>` : ''}
+          ${isCustom ? `<span class="material-symbols-outlined text-xs text-white" title="Custom Model">build</span>` : ''}
+          <button class="remove-selected-pill-btn ml-1 p-0.5 rounded hover:bg-white/20 transition-colors"
+                  data-provider="${model.provider}"
+                  data-model="${model.model}"
+                  title="Remove model">
+            <span class="material-symbols-outlined text-sm text-white">close</span>
+          </button>
+        </div>
+      `;
+    }).join('');
+
+    // Add event listeners to remove buttons
+    container.querySelectorAll('.remove-selected-pill-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const provider = btn.dataset.provider;
+        const modelName = btn.dataset.model;
+        this.removeModelFromSelection(provider, modelName);
+      });
+    });
+  },
+
+  /**
+   * Clear all selected models
+   */
+  clearAllModels() {
+    this.selectedModels = [];
+    this.renderModelSelector();
+    this.renderSelectedModelsPills();
+    this.calculate();
+  },
 
   /**
    * Update runtime estimate for total requests mode
@@ -1899,7 +1989,8 @@ const App = {
       totalRequests: 100,
       daysPerMonth: 30,
       selectedPreset: 'custom',
-      presetsCollapsed: true
+      presetsCollapsed: true,
+      modelSelectorCollapsed: true
     };
 
     // Reset provider filter
@@ -1951,6 +2042,8 @@ const App = {
     this.toggleCalcModeContent();
     this.updateRequestsLabel();
     this.togglePresetsCollapsed();
+    this.toggleModelSelectorCollapsed();
+    this.renderSelectedModelsPills();
 
     // Reinitialize with default model
     const gpt5 = this.models.find(m => m.model === 'GPT-5');
