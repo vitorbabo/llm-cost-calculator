@@ -96,7 +96,7 @@ Allow users to specify the number of active days per month (1-31) instead of ass
 
 ### 3. Enhanced Cost Metrics
 **Priority:** 🟡 Medium
-**Status:** Planned
+**Status:** ✅ Completed
 **Complexity:** Low to Medium
 
 **Description:**
@@ -201,7 +201,7 @@ Ability to save calculation configurations with custom names, store them in brow
 
 ### 6. Model Tier Badges
 **Priority:** 🔵 Low
-**Status:** Planned
+**Status:** ✅ Completed
 **Complexity:** Low
 
 **Description:**
@@ -232,7 +232,7 @@ Visual categorization of models with badges/icons indicating their pricing tier.
 
 ### 7. Provider Tab Filtering
 **Priority:** 🔵 Low
-**Status:** Planned
+**Status:** ✅ Completed
 **Complexity:** Medium
 
 **Description:**
@@ -298,7 +298,7 @@ Informational sections with tips, best practices, and educational content about 
 
 ### 9. Alternative Input Mode: Requests Per Day
 **Priority:** 🔵 Low
-**Status:** Planned
+**Status:** ✅ Completed
 **Complexity:** Low
 
 **Description:**
@@ -354,43 +354,6 @@ These features are being considered but require more research or user feedback:
 ✅ Responsive design
 ✅ Duration and total requests modes
 ✅ Configuration file support (branding/API keys)
-
----
-
-## Implementation Timeline
-
-### Phase 1: Core Enhancements (Completed)
-- ✅ Usage Pattern Presets
-- ✅ Days Per Month Configuration
-
-### Phase 2: User Experience (Planned - Q1 2025)
-- Enhanced Cost Metrics
-- Tooltips and Help Icons
-- Model Tier Badges
-
-### Phase 3: Power Features (Planned - Q2 2025)
-- Save Calculation Feature
-- Provider Tab Filtering
-- Usage Tips Content
-
-### Phase 4: Polish & Refinement (Planned - Q2-Q3 2025)
-- Alternative input modes
-- Additional presets
-- Performance optimizations
-- Accessibility improvements
-
----
-
-## Contributing
-
-We welcome contributions! If you'd like to work on any of these features:
-
-1. Check the feature status in this roadmap
-2. Open an issue to discuss your approach
-3. Fork the repository and create a feature branch
-4. Submit a pull request with clear documentation
-
-For questions or suggestions about the roadmap, please open an issue on GitHub.
 
 ---
 
