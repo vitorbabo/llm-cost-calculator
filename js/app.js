@@ -1587,19 +1587,46 @@ const App = {
     // Calculate cost per 1K requests for this model
     const costPer1k = (result.totalCost.totalCost / result.totalCost.totalRequests) * 1000;
 
-    // Calculate monthly projection
+    // Calculate enhanced cost metrics
     let monthlyCost = 0;
+    let dailyCost = 0;
+    let yearlyCost = 0;
+
     if (result.totalCost.mode === 'total') {
       // For total mode, show the total cost
       monthlyCost = result.totalCost.totalCost;
+      dailyCost = result.totalCost.totalCost;
+      yearlyCost = result.totalCost.totalCost;
     } else {
-      // Project to monthly based on duration
+      // Project to different time periods based on duration
       switch (result.totalCost.duration) {
-        case 'hour': monthlyCost = result.totalCost.totalCost * 24 * 30; break;
-        case 'day': monthlyCost = result.totalCost.totalCost * 30; break;
-        case 'month': monthlyCost = result.totalCost.totalCost; break;
+        case 'minute':
+          dailyCost = result.totalCost.totalCost * 60 * 24;
+          monthlyCost = dailyCost * this.sharedConfig.daysPerMonth;
+          yearlyCost = monthlyCost * 12;
+          break;
+        case 'hour':
+          dailyCost = result.totalCost.totalCost * 24;
+          monthlyCost = dailyCost * this.sharedConfig.daysPerMonth;
+          yearlyCost = monthlyCost * 12;
+          break;
+        case 'day':
+          dailyCost = result.totalCost.totalCost;
+          monthlyCost = dailyCost * this.sharedConfig.daysPerMonth;
+          yearlyCost = monthlyCost * 12;
+          break;
+        case 'month':
+          monthlyCost = result.totalCost.totalCost;
+          dailyCost = monthlyCost / this.sharedConfig.daysPerMonth;
+          yearlyCost = monthlyCost * 12;
+          break;
       }
     }
+
+    // Calculate cost distribution percentages
+    const totalCost = result.totalCost.totalInputCost + result.totalCost.totalOutputCost;
+    const inputPercentage = totalCost > 0 ? (result.totalCost.totalInputCost / totalCost * 100) : 0;
+    const outputPercentage = totalCost > 0 ? (result.totalCost.totalOutputCost / totalCost * 100) : 0;
 
     // Build calculation basis text
     let calculationBasis = '';
@@ -1648,6 +1675,19 @@ const App = {
                 <span class="text-text-light/70 dark:text-text-dark/70">Output Cost:</span>
                 <span class="font-medium">${result.totalCost.totalOutputTokens.toLocaleString()} tokens × ${Utils.formatCurrency(result.model.output_price_per_1m)}/1M = ${Utils.formatCurrency(result.totalCost.totalOutputCost)}</span>
               </div>
+
+              <!-- Cost Distribution Bar -->
+              <div class="pt-2">
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-text-light/70 dark:text-text-dark/70">Cost Distribution</span>
+                  <span class="text-text-light/60 dark:text-text-dark/60">Input ${inputPercentage.toFixed(0)}% / Output ${outputPercentage.toFixed(0)}%</span>
+                </div>
+                <div class="flex h-3 rounded-full overflow-hidden bg-border-light dark:bg-border-dark">
+                  <div class="bg-blue-500 dark:bg-blue-600 transition-all" style="width: ${inputPercentage}%" title="Input: ${inputPercentage.toFixed(1)}%"></div>
+                  <div class="bg-green-500 dark:bg-green-600 transition-all" style="width: ${outputPercentage}%" title="Output: ${outputPercentage.toFixed(1)}%"></div>
+                </div>
+              </div>
+
               <div class="flex justify-between pt-2 border-t border-border-light dark:border-border-dark">
                 <span class="text-text-light/70 dark:text-text-dark/70">Cost per Request:</span>
                 <span class="font-medium">${Utils.formatCurrency(result.totalCost.costPerRequest)}</span>
@@ -1656,11 +1696,35 @@ const App = {
                 <span class="text-text-light/70 dark:text-text-dark/70">Cost per 1K Requests:</span>
                 <span class="font-medium">${Utils.formatCurrency(costPer1k)}</span>
               </div>
-              <div class="flex justify-between">
-                <span class="text-text-light/70 dark:text-text-dark/70">${result.totalCost.mode === 'total' ? 'Total Cost:' : 'Monthly Projection:'}</span>
-                <span class="font-medium">${Utils.formatCurrency(monthlyCost)}</span>
-              </div>
             </div>
+
+            <!-- Enhanced Cost Projections -->
+            ${result.totalCost.mode !== 'total' ? `
+              <div class="mt-4 pt-4 border-t border-border-light dark:border-border-dark">
+                <h4 class="font-semibold text-sm mb-3 text-primary">Cost Projections</h4>
+                <div class="grid grid-cols-3 gap-4">
+                  <div class="text-center p-3 rounded-lg bg-background-light dark:bg-background-dark">
+                    <p class="text-xs text-text-light/60 dark:text-text-dark/60 mb-1">Daily Average</p>
+                    <p class="text-sm font-semibold text-primary">${Utils.formatCurrency(dailyCost)}</p>
+                  </div>
+                  <div class="text-center p-3 rounded-lg bg-background-light dark:bg-background-dark">
+                    <p class="text-xs text-text-light/60 dark:text-text-dark/60 mb-1">Monthly (${this.sharedConfig.daysPerMonth}d)</p>
+                    <p class="text-sm font-semibold text-primary">${Utils.formatCurrency(monthlyCost)}</p>
+                  </div>
+                  <div class="text-center p-3 rounded-lg bg-background-light dark:bg-background-dark">
+                    <p class="text-xs text-text-light/60 dark:text-text-dark/60 mb-1">Yearly (12mo)</p>
+                    <p class="text-sm font-semibold text-primary">${Utils.formatCurrency(yearlyCost)}</p>
+                  </div>
+                </div>
+              </div>
+            ` : `
+              <div class="mt-4 pt-4 border-t border-border-light dark:border-border-dark">
+                <div class="flex justify-between">
+                  <span class="text-text-light/70 dark:text-text-dark/70">Total Cost:</span>
+                  <span class="font-medium">${Utils.formatCurrency(result.totalCost.totalCost)}</span>
+                </div>
+              </div>
+            `}
           </div>
 
           <!-- Quota Usage -->
