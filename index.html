@@ -242,12 +242,11 @@
                     <span class="text-xs font-medium text-text-light/70 dark:text-text-dark/70">Total Requests</span>
                     <input type="number" id="total-requests-input" value="100" min="1" max="10000000" step="1" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
                   </label>
-                  <p class="text-xs text-text-light/60 dark:text-text-dark/60" id="runtime-estimate">Runtime: ~1.4 minutes at 0.07 RPM</p>
                 </div>
               </div>
 
-              <!-- Active Days per Month - Always visible -->
-              <div>
+              <!-- Active Days per Month - Conditional visibility -->
+              <div id="days-per-month-container">
                 <label class="flex items-center justify-between">
                   <span class="text-xs font-medium text-text-light/70 dark:text-text-dark/70">Active Days per Month</span>
                   <input type="number" id="days-per-month" value="30" min="1" max="31" class="w-20 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>

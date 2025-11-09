@@ -1019,15 +1019,26 @@ const App = {
   toggleCalcModeContent() {
     const rateBasedContent = document.getElementById('rate-based-content');
     const totalRequestsContent = document.getElementById('total-requests-content');
+    const daysPerMonthContainer = document.getElementById('days-per-month-container');
 
     if (!rateBasedContent || !totalRequestsContent) return;
 
+    // Toggle between rate-based and total requests input
     if (this.sharedConfig.calcMode === 'total') {
       rateBasedContent.classList.add('hidden');
       totalRequestsContent.classList.remove('hidden');
     } else {
       rateBasedContent.classList.remove('hidden');
       totalRequestsContent.classList.add('hidden');
+    }
+
+    // Hide Active Days per Month for 'month' and 'total' modes (not applicable)
+    if (daysPerMonthContainer) {
+      if (this.sharedConfig.calcMode === 'month' || this.sharedConfig.calcMode === 'total') {
+        daysPerMonthContainer.classList.add('hidden');
+      } else {
+        daysPerMonthContainer.classList.remove('hidden');
+      }
     }
   },
 
@@ -1653,15 +1664,6 @@ const App = {
 
     return `
       <div class="p-6 bg-background-light/50 dark:bg-background-dark/50">
-        <!-- Calculation Basis Banner -->
-        <div class="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-          <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-primary text-sm">calculate</span>
-            <span class="text-xs font-medium text-text-light/80 dark:text-text-dark/80">Calculation Basis:</span>
-            <span class="text-xs font-semibold text-primary">${calculationBasis}</span>
-          </div>
-        </div>
-
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <!-- Cost Details -->
           <div class="md:col-span-2">
