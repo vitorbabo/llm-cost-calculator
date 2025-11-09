@@ -78,6 +78,9 @@ const Calculator = {
     } else {
       // Duration mode: calculate from RPM × time
       switch (duration) {
+        case 'minute':
+          multiplier = 1;
+          break;
         case 'hour':
           multiplier = 60;
           break;
@@ -110,6 +113,9 @@ const Calculator = {
       } else {
         // Prorate based on duration
         switch (duration) {
+          case 'minute':
+            totalCost = ptuMonthlyPrice / (daysPerMonth * 24 * 60);
+            break;
           case 'hour':
             totalCost = ptuMonthlyPrice / (daysPerMonth * 24);
             break;

@@ -12,10 +12,9 @@ const App = {
   sharedConfig: {
     inputTokens: 5000,
     outputTokens: 1500,
-    requestsPerDay: 100, // Requests per day (user-facing)
-    rpm: 0.0694, // Calculated from requestsPerDay (100/1440)
-    calcMode: 'duration', // 'duration' or 'total'
-    duration: 'day', // 'hour', 'day', or 'month'
+    requestsPerDay: 100, // Requests per period (user-facing)
+    rpm: 0.0694, // Calculated from requestsPerDay
+    calcMode: 'day', // 'minute', 'hour', 'day', 'month', or 'total'
     totalRequests: 100, // For 'total' mode
     daysPerMonth: 30, // Number of active days per month
     selectedPreset: 'custom', // Track which preset is selected
@@ -45,8 +44,8 @@ const App = {
       this.renderModelSelector();
       this.setupEventListeners();
       this.updateDynamicLimits(); // Set initial dynamic limits
-      this.toggleDaysPerMonthField(); // Initialize days per month field visibility
-      this.updateRequestsLabel(); // Initialize requests label based on duration
+      this.toggleCalcModeContent(); // Initialize calc mode content visibility
+      this.updateRequestsLabel(); // Initialize requests label based on calc mode
       this.selectPreset('custom'); // Mark custom as initially selected
       this.updateRPMDisplay(); // Initialize RPM display
       this.togglePresetsCollapsed(); // Initialize collapsed state
@@ -850,34 +849,16 @@ const App = {
       this.calculate();
     });
 
-    // Calculation mode radio buttons
-    document.querySelectorAll('input[name="calc-mode"]').forEach(radio => {
-      radio.addEventListener('change', (e) => {
-        this.sharedConfig.calcMode = e.target.value;
+    // Calculation mode dropdown
+    document.getElementById('calc-mode-select')?.addEventListener('change', (e) => {
+      this.sharedConfig.calcMode = e.target.value;
 
-        // Enable/disable total requests input based on mode
-        const totalRequestsInput = document.getElementById('total-requests-input');
-        const durationSelect = document.getElementById('duration-select');
-
-        if (e.target.value === 'total') {
-          totalRequestsInput?.removeAttribute('disabled');
-          durationSelect?.setAttribute('disabled', 'disabled');
-        } else {
-          totalRequestsInput?.setAttribute('disabled', 'disabled');
-          durationSelect?.removeAttribute('disabled');
-        }
-
-        this.updateRuntimeEstimate();
-        this.calculate();
-      });
-    });
-
-    // Duration selector
-    document.getElementById('duration-select')?.addEventListener('change', (e) => {
-      this.sharedConfig.duration = e.target.value;
-      this.updateRequestsLabel(); // Update label to match duration
-      this.toggleDaysPerMonthField();
-      this.updateRPMFromRequests(); // Recalculate RPM with new duration
+      // Update UI based on mode
+      this.toggleCalcModeContent();
+      this.updateRequestsLabel();
+      this.updateRPMFromRequests();
+      this.updateRuntimeEstimate();
+      this.selectPreset('custom'); // Switch to custom when mode changes
       this.calculate();
     });
 
@@ -958,9 +939,9 @@ const App = {
         const inputTokens = parseInt(button.dataset.input);
         const outputTokens = parseInt(button.dataset.output);
         const requestsPerDay = parseInt(button.dataset.requestsPerDay);
-        const duration = button.dataset.duration;
+        const calcMode = button.dataset.calcMode;
 
-        this.applyPreset(preset, inputTokens, outputTokens, requestsPerDay, duration);
+        this.applyPreset(preset, inputTokens, outputTokens, requestsPerDay, calcMode);
       });
     });
   },
@@ -968,13 +949,12 @@ const App = {
   /**
    * Apply a usage preset
    */
-  applyPreset(presetName, inputTokens, outputTokens, requestsPerDay, duration) {
+  applyPreset(presetName, inputTokens, outputTokens, requestsPerDay, calcMode) {
     // Update config
     this.sharedConfig.inputTokens = inputTokens;
     this.sharedConfig.outputTokens = outputTokens;
     this.sharedConfig.requestsPerDay = requestsPerDay;
-    this.sharedConfig.duration = duration;
-    this.sharedConfig.calcMode = 'duration';
+    this.sharedConfig.calcMode = calcMode;
     this.sharedConfig.selectedPreset = presetName;
 
     // Update UI inputs
@@ -984,17 +964,12 @@ const App = {
     document.getElementById('shared-output-slider').value = outputTokens;
     document.getElementById('shared-requests-per-day').value = requestsPerDay;
     document.getElementById('shared-requests-per-day-slider').value = requestsPerDay;
-    document.getElementById('duration-select').value = duration;
-    document.getElementById('calc-mode-duration').checked = true;
+    document.getElementById('calc-mode-select').value = calcMode;
 
-    // Enable/disable appropriate inputs
-    document.getElementById('total-requests-input')?.setAttribute('disabled', 'disabled');
-    document.getElementById('duration-select')?.removeAttribute('disabled');
-
-    // Update UI based on duration
+    // Update UI based on calc mode
+    this.toggleCalcModeContent();
     this.updateRequestsLabel();
-    this.toggleDaysPerMonthField();
-    this.updateRPMFromRequests(); // Convert to RPM based on duration
+    this.updateRPMFromRequests(); // Convert to RPM based on calc mode
 
     // Update preset selection visual state
     this.selectPreset(presetName);
@@ -1039,43 +1014,48 @@ const App = {
   },
 
   /**
-   * Toggle visibility of days per month field based on duration selection
+   * Toggle visibility of content areas based on calc mode
    */
-  toggleDaysPerMonthField() {
-    const daysPerMonthContainer = document.getElementById('days-per-month-container');
-    const duration = this.sharedConfig.duration;
+  toggleCalcModeContent() {
+    const rateBasedContent = document.getElementById('rate-based-content');
+    const totalRequestsContent = document.getElementById('total-requests-content');
 
-    if (daysPerMonthContainer) {
-      if (duration === 'month') {
-        daysPerMonthContainer.classList.remove('hidden');
-      } else {
-        daysPerMonthContainer.classList.add('hidden');
-      }
+    if (!rateBasedContent || !totalRequestsContent) return;
+
+    if (this.sharedConfig.calcMode === 'total') {
+      rateBasedContent.classList.add('hidden');
+      totalRequestsContent.classList.remove('hidden');
+    } else {
+      rateBasedContent.classList.remove('hidden');
+      totalRequestsContent.classList.add('hidden');
     }
   },
 
   /**
-   * Update requests input label based on selected duration
+   * Update requests input label based on selected calc mode
    */
   updateRequestsLabel() {
     const requestsLabel = document.getElementById('requests-label');
     if (!requestsLabel) return;
 
-    const duration = this.sharedConfig.duration;
+    const mode = this.sharedConfig.calcMode;
     const labelMap = {
+      'minute': 'Requests Per Minute',
       'hour': 'Requests Per Hour',
       'day': 'Requests Per Day',
       'month': 'Requests Per Month'
     };
 
-    requestsLabel.textContent = labelMap[duration] || 'Requests';
+    requestsLabel.textContent = labelMap[mode] || 'Requests';
   },
 
   /**
-   * Convert requests to RPM based on duration
+   * Convert requests to RPM based on calc mode
    */
-  convertRequestsToRPM(requests, duration, daysPerMonth = 30) {
-    switch (duration) {
+  convertRequestsToRPM(requests, mode, daysPerMonth = 30) {
+    switch (mode) {
+      case 'minute':
+        return requests; // Already in RPM
       case 'hour':
         return requests / 60;
       case 'day':
@@ -1088,12 +1068,12 @@ const App = {
   },
 
   /**
-   * Update RPM based on current requests and duration
+   * Update RPM based on current requests and calc mode
    */
   updateRPMFromRequests() {
     this.sharedConfig.rpm = this.convertRequestsToRPM(
       this.sharedConfig.requestsPerDay, // This is actually "requests per [period]" now
-      this.sharedConfig.duration,
+      this.sharedConfig.calcMode,
       this.sharedConfig.daysPerMonth
     );
     this.updateRPMDisplay();
@@ -1253,13 +1233,17 @@ const App = {
     const outputTokens = Utils.toTokens(this.sharedConfig.outputTokens, this.globalOutputUnit);
 
     // Create comparisons for each selected model with the shared config
+    // Convert calcMode to mode/duration format for calculator
+    const mode = this.sharedConfig.calcMode === 'total' ? 'total' : 'duration';
+    const duration = this.sharedConfig.calcMode === 'total' ? 'day' : this.sharedConfig.calcMode;
+
     const comparisons = this.selectedModels.map(model => ({
       model,
       inputTokens,
       outputTokens,
       rpm: this.sharedConfig.rpm,
-      calcMode: this.sharedConfig.calcMode,
-      duration: this.sharedConfig.duration,
+      calcMode: mode,
+      duration: duration,
       totalRequests: this.sharedConfig.totalRequests,
       daysPerMonth: this.sharedConfig.daysPerMonth,
       enabled: true
@@ -1845,8 +1829,7 @@ const App = {
       outputTokens: 1500,
       requestsPerDay: 100,
       rpm: 100 / 1440, // Calculated from requestsPerDay
-      calcMode: 'duration',
-      duration: 'day',
+      calcMode: 'day', // 'minute', 'hour', 'day', 'month', or 'total'
       totalRequests: 100,
       daysPerMonth: 30,
       selectedPreset: 'custom',
@@ -1863,8 +1846,7 @@ const App = {
     const sharedOutputSlider = document.getElementById('shared-output-slider');
     const sharedRequestsPerDay = document.getElementById('shared-requests-per-day');
     const sharedRequestsPerDaySlider = document.getElementById('shared-requests-per-day-slider');
-    const calcModeDuration = document.getElementById('calc-mode-duration');
-    const durationSelect = document.getElementById('duration-select');
+    const calcModeSelect = document.getElementById('calc-mode-select');
     const totalRequestsInput = document.getElementById('total-requests-input');
 
     if (sharedInputTokens) sharedInputTokens.value = 5000;
@@ -1873,12 +1855,8 @@ const App = {
     if (sharedOutputSlider) sharedOutputSlider.value = 1500;
     if (sharedRequestsPerDay) sharedRequestsPerDay.value = 100;
     if (sharedRequestsPerDaySlider) sharedRequestsPerDaySlider.value = 100;
-    if (calcModeDuration) calcModeDuration.checked = true;
-    if (durationSelect) durationSelect.value = 'day';
-    if (totalRequestsInput) {
-      totalRequestsInput.value = 100;
-      totalRequestsInput.disabled = true;
-    }
+    if (calcModeSelect) calcModeSelect.value = 'day';
+    if (totalRequestsInput) totalRequestsInput.value = 100;
 
     // Reset days per month
     const daysPerMonth = document.getElementById('days-per-month');
@@ -1902,10 +1880,10 @@ const App = {
     this.updateRPMDisplay();
     this.renderModelSelector(); // Re-render pills to reset provider filter and selection
 
-    // Reset preset selection and days per month visibility
+    // Reset UI state
     this.selectPreset('custom');
+    this.toggleCalcModeContent();
     this.updateRequestsLabel();
-    this.toggleDaysPerMonthField();
     this.togglePresetsCollapsed();
 
     // Reinitialize with default model

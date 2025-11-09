@@ -94,7 +94,7 @@
                     data-input="400"
                     data-output="200"
                     data-requests-per-day="1000"
-                    data-duration="day">
+                    data-calc-mode="day">
               <div class="flex items-start gap-3">
                 <span class="material-symbols-outlined text-primary mt-0.5">support_agent</span>
                 <div class="flex-1 min-w-0">
@@ -110,7 +110,7 @@
                     data-input="300"
                     data-output="1000"
                     data-requests-per-day="100"
-                    data-duration="day">
+                    data-calc-mode="day">
               <div class="flex items-start gap-3">
                 <span class="material-symbols-outlined text-primary mt-0.5">edit_note</span>
                 <div class="flex-1 min-w-0">
@@ -126,7 +126,7 @@
                     data-input="3000"
                     data-output="500"
                     data-requests-per-day="50"
-                    data-duration="day">
+                    data-calc-mode="day">
               <div class="flex items-start gap-3">
                 <span class="material-symbols-outlined text-primary mt-0.5">analytics</span>
                 <div class="flex-1 min-w-0">
@@ -142,7 +142,7 @@
                     data-input="10000"
                     data-output="800"
                     data-requests-per-day="20"
-                    data-duration="day">
+                    data-calc-mode="day">
               <div class="flex items-start gap-3">
                 <span class="material-symbols-outlined text-primary mt-0.5">summarize</span>
                 <div class="flex-1 min-w-0">
@@ -158,7 +158,7 @@
                     data-input="2000"
                     data-output="1500"
                     data-requests-per-day="150"
-                    data-duration="day">
+                    data-calc-mode="day">
               <div class="flex items-start gap-3">
                 <span class="material-symbols-outlined text-primary mt-0.5">code</span>
                 <div class="flex-1 min-w-0">
@@ -211,61 +211,48 @@
 
             <!-- Cost Calculation Mode -->
             <div class="flex flex-col gap-4 pt-3 border-t border-border-light/50 dark:border-border-dark/50">
-              <label class="text-sm font-medium">Calculate cost for:</label>
+              <div>
+                <label class="block text-sm font-medium mb-2">Calculate cost for:</label>
+                <select id="calc-mode-select" aria-label="Calculation mode" class="form-select w-full text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary">
+                  <option value="minute">Per Minute (advanced - for quota validation)</option>
+                  <option value="hour">Per Hour</option>
+                  <option value="day" selected>Per Day (recommended)</option>
+                  <option value="month">Per Month</option>
+                  <option value="total">Total Requests (fixed volume)</option>
+                </select>
+              </div>
 
-              <!-- Duration Mode -->
-              <div class="flex items-start gap-3">
-                <input type="radio" id="calc-mode-duration" name="calc-mode" value="duration" checked class="mt-1 accent-primary"/>
-                <div class="flex-1 flex flex-col gap-3">
-                  <label for="calc-mode-duration" class="text-sm cursor-pointer">
-                    <span class="font-medium">Duration</span>
-                    <span class="text-text-light/60 dark:text-text-dark/60"> - Cost over time period</span>
+              <!-- Dynamic content area -->
+              <div id="calc-content-area">
+                <!-- Rate-based input (shown for minute/hour/day/month) -->
+                <div id="rate-based-content" class="flex flex-col gap-2">
+                  <label class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-text-light/70 dark:text-text-dark/70" id="requests-label">Requests Per Day</span>
+                    <input type="number" id="shared-requests-per-day" value="100" min="1" max="1000000" step="1" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
                   </label>
+                  <input type="range" id="shared-requests-per-day-slider" value="100" min="1" max="10000" step="1" aria-label="Requests slider" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">
+                    <span id="rpm-display">~0.07 RPM</span> • For throughput validation (max: <span id="rpm-limit-display">250</span> RPM)
+                  </p>
+                </div>
 
-                  <!-- Time Period Selector -->
-                  <div>
-                    <label class="block text-xs font-medium text-text-light/70 dark:text-text-dark/70 mb-1">Time Period</label>
-                    <select id="duration-select" aria-label="Duration for cost calculation" class="form-select w-full text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary">
-                      <option value="hour">Per Hour</option>
-                      <option value="day" selected>Per Day</option>
-                      <option value="month">Per Month</option>
-                    </select>
-                  </div>
-
-                  <!-- Dynamic Requests Input -->
-                  <div class="flex flex-col gap-2">
-                    <label class="flex items-center justify-between">
-                      <span class="text-xs font-medium text-text-light/70 dark:text-text-dark/70" id="requests-label">Requests Per Day</span>
-                      <input type="number" id="shared-requests-per-day" value="100" min="1" max="1000000" step="1" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
-                    </label>
-                    <input type="range" id="shared-requests-per-day-slider" value="100" min="1" max="10000" step="1" aria-label="Requests slider" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
-                    <p class="text-xs text-text-light/60 dark:text-text-dark/60">
-                      <span id="rpm-display">~0.07 RPM</span> • For throughput validation (max: <span id="rpm-limit-display">250</span> RPM)
-                    </p>
-                  </div>
-
-                  <!-- Active Days per Month (only for month duration) -->
-                  <div id="days-per-month-container" class="hidden">
-                    <label class="flex items-center justify-between">
-                      <span class="text-xs font-medium text-text-light/70 dark:text-text-dark/70">Active Days per Month</span>
-                      <input type="number" id="days-per-month" value="30" min="1" max="31" class="w-20 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
-                    </label>
-                    <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-1">Adjust for part-time operations (e.g., 22 for 5-day work week)</p>
-                  </div>
+                <!-- Total requests input (shown for total mode) -->
+                <div id="total-requests-content" class="hidden flex flex-col gap-2">
+                  <label class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-text-light/70 dark:text-text-dark/70">Total Requests</span>
+                    <input type="number" id="total-requests-input" value="100" min="1" max="10000000" step="1" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
+                  </label>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60" id="runtime-estimate">Runtime: ~1.4 minutes at 0.07 RPM</p>
                 </div>
               </div>
 
-              <!-- Total Requests Mode -->
-              <div class="flex items-start gap-3">
-                <input type="radio" id="calc-mode-total" name="calc-mode" value="total" class="mt-1 accent-primary"/>
-                <div class="flex-1 flex flex-col gap-2">
-                  <label for="calc-mode-total" class="text-sm cursor-pointer">
-                    <span class="font-medium">Total Requests</span>
-                    <span class="text-text-light/60 dark:text-text-dark/60"> - Cost for fixed volume</span>
-                  </label>
-                  <input type="number" id="total-requests-input" value="100" min="1" max="10000000" step="1" aria-label="Total number of requests" class="w-full text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary disabled:opacity-50" disabled/>
-                  <p class="text-xs text-text-light/60 dark:text-text-dark/60" id="runtime-estimate">Runtime: ~100 minutes at 100 RPM</p>
-                </div>
+              <!-- Active Days per Month - Always visible -->
+              <div>
+                <label class="flex items-center justify-between">
+                  <span class="text-xs font-medium text-text-light/70 dark:text-text-dark/70">Active Days per Month</span>
+                  <input type="number" id="days-per-month" value="30" min="1" max="31" class="w-20 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
+                </label>
+                <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-1">Used for monthly cost projections (e.g., 22 for 5-day work week)</p>
               </div>
             </div>
           </div>
