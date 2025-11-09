@@ -8,13 +8,18 @@ const App = {
   customModels: [], // Array of user-created custom models
   selectedModels: [], // Array of selected model objects
   config: null, // Application configuration from config.json
+  selectedProvider: 'all', // Track selected provider filter
   sharedConfig: {
     inputTokens: 5000,
     outputTokens: 1500,
-    rpm: 20, // Requests per minute
-    calcMode: 'duration', // 'duration' or 'total'
-    duration: 'day', // 'hour', 'day', or 'month'
-    totalRequests: 100 // For 'total' mode
+    requestsPerDay: 100, // Requests per period (user-facing)
+    rpm: 0.0694, // Calculated from requestsPerDay
+    calcMode: 'day', // 'minute', 'hour', 'day', 'month', or 'total'
+    totalRequests: 100, // For 'total' mode
+    daysPerMonth: 30, // Number of active days per month
+    selectedPreset: 'custom', // Track which preset is selected
+    presetsCollapsed: true, // Track if presets are collapsed
+    modelSelectorCollapsed: true // Track if model selector is collapsed
   },
   globalInputUnit: 'tokens',
   globalOutputUnit: 'tokens',
@@ -40,6 +45,12 @@ const App = {
       this.renderModelSelector();
       this.setupEventListeners();
       this.updateDynamicLimits(); // Set initial dynamic limits
+      this.toggleCalcModeContent(); // Initialize calc mode content visibility
+      this.updateRequestsLabel(); // Initialize requests label based on calc mode
+      this.selectPreset('custom'); // Mark custom as initially selected
+      this.updateRPMDisplay(); // Initialize RPM display
+      this.togglePresetsCollapsed(); // Initialize collapsed state
+      this.toggleModelSelectorCollapsed(); // Initialize model selector collapsed state
 
       // Initialize with default model selection
       const gpt4o = this.models.find(m => m.model === 'GPT-5');
@@ -164,11 +175,76 @@ const App = {
 
       // Merge custom models with CSV models
       this.models = [...csvModels, ...this.customModels];
+
+      // Calculate and assign tiers to all models
+      this.calculateModelTiers();
+
       console.log(`Loaded ${csvModels.length} CSV models and ${this.customModels.length} custom models`);
     } catch (error) {
       console.error('Error loading models:', error);
       throw error;
     }
+  },
+
+  /**
+   * Calculate and assign tier badges to models based on pricing
+   */
+  calculateModelTiers() {
+    // Calculate average price for each model (average of input and output price)
+    const modelsWithPrices = this.models
+      .filter(m => m.pricing_type === 'PAYG') // Only tier PAYG models
+      .map(model => ({
+        model,
+        avgPrice: (parseFloat(model.input_price_per_1m) + parseFloat(model.output_price_per_1m)) / 2
+      }))
+      .sort((a, b) => b.avgPrice - a.avgPrice); // Sort descending
+
+    if (modelsWithPrices.length === 0) return;
+
+    // Calculate percentiles
+    const count = modelsWithPrices.length;
+    const p25Index = Math.floor(count * 0.25);
+    const p75Index = Math.floor(count * 0.75);
+
+    // Assign tiers
+    modelsWithPrices.forEach((item, index) => {
+      let tier, tierIcon, tierColor;
+
+      if (index < p25Index) {
+        // Top 25% - High-End
+        tier = 'High-End';
+        tierIcon = 'star';
+        tierColor = 'text-yellow-600 dark:text-yellow-400';
+      } else if (index >= p75Index) {
+        // Bottom 25% - Budget
+        tier = 'Budget';
+        tierIcon = 'savings';
+        tierColor = 'text-green-600 dark:text-green-400';
+      } else {
+        // Middle 50% - Mid-Range
+        tier = 'Mid-Range';
+        tierIcon = 'bolt';
+        tierColor = 'text-blue-600 dark:text-blue-400';
+      }
+
+      item.model.tier = tier;
+      item.model.tierIcon = tierIcon;
+      item.model.tierColor = tierColor;
+    });
+
+    // PTU models get special tier
+    this.models.filter(m => m.pricing_type === 'PTU').forEach(model => {
+      model.tier = 'Specialized';
+      model.tierIcon = 'verified';
+      model.tierColor = 'text-purple-600 dark:text-purple-400';
+    });
+
+    // Custom models without tiers
+    this.models.filter(m => m.isCustom && !m.tier).forEach(model => {
+      model.tier = 'Custom';
+      model.tierIcon = 'build';
+      model.tierColor = 'text-gray-600 dark:text-gray-400';
+    });
   },
 
   /**
@@ -290,11 +366,8 @@ const App = {
     // Add custom models back
     this.models = [...this.models, ...this.customModels];
 
-    // Re-render model selector
+    // Re-render model selector (which will show pills with correct selection state)
     this.renderModelSelector();
-
-    // Update checkboxes
-    this.updateModelSelectorCheckboxes();
   },
 
   /**
@@ -414,56 +487,147 @@ const App = {
     const selector = document.getElementById('model-selector');
     if (!selector) return;
 
+    // Render provider tabs
+    this.renderProviderTabs();
+
     const providers = this.getProviders();
 
-    selector.innerHTML = Object.keys(providers).sort().map(providerName => {
-      const models = providers[providerName];
+    // Filter providers based on selection
+    const filteredProviders = this.selectedProvider === 'all'
+      ? providers
+      : { [this.selectedProvider]: providers[this.selectedProvider] || [] };
+
+    // Render models as clickable pills grouped by provider
+    selector.innerHTML = Object.keys(filteredProviders).sort().map(providerName => {
+      const models = filteredProviders[providerName];
       return `
-        <div class="provider-group border-b border-border-light dark:border-border-dark last:border-b-0">
-          <div class="p-2 bg-background-light/50 dark:bg-background-dark/50 text-xs font-medium text-text-light/70 dark:text-text-dark/70">
+        <div class="provider-group mb-4">
+          <div class="mb-2 text-xs font-semibold text-text-light/70 dark:text-text-dark/70 uppercase tracking-wide">
             ${providerName}
           </div>
-          ${models.map(model => {
-            const modelId = `${model.provider}-${model.model}`.replace(/[^a-zA-Z0-9-]/g, '-');
-            const isCustom = model.isCustom === true;
-            return `
-              <label class="model-option flex items-center gap-3 p-3 hover:bg-background-light dark:hover:bg-background-dark cursor-pointer transition-colors"
-                     data-model-id="${modelId}">
-                <input type="checkbox"
-                       class="model-checkbox w-4 h-4 text-primary bg-surface-light dark:bg-surface-dark border-border-light dark:border-border-dark rounded focus:ring-primary"
-                       data-provider="${model.provider}"
-                       data-model="${model.model}">
-                <div class="flex-1">
+          <div class="flex flex-wrap gap-2">
+            ${models.map(model => {
+              const isSelected = this.selectedModels.some(m =>
+                m.provider === model.provider && m.model === model.model
+              );
+              const isCustom = model.isCustom === true;
+              const hasTier = model.tier && !isCustom;
+
+              // Base classes for pill
+              const baseClasses = 'model-pill flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all text-xs border';
+              const selectedClasses = isSelected
+                ? 'bg-primary text-white border-primary shadow-md'
+                : 'bg-surface-light dark:bg-surface-dark border-border-light dark:border-border-dark hover:border-primary/50 hover:bg-primary/5';
+
+              return `
+                <div class="model-option ${baseClasses} ${selectedClasses}"
+                     data-provider="${model.provider}"
+                     data-model="${model.model}">
+                  <div class="flex items-center gap-2 flex-1">
+                    <span class="font-medium whitespace-nowrap">${model.model}</span>
+                    ${hasTier ? `<span class="material-symbols-outlined text-xs ${isSelected ? 'text-white' : model.tierColor}" title="${model.tier}">${model.tierIcon}</span>` : ''}
+                    ${isCustom ? `<span class="material-symbols-outlined text-xs ${isSelected ? 'text-white' : 'text-primary'}" title="Custom Model">build</span>` : ''}
+                  </div>
                   <div class="flex items-center gap-2">
-                    <p class="text-sm font-medium">${model.model}</p>
-                    ${isCustom ? '<span class="px-2 py-0.5 text-xs font-medium bg-primary/20 text-primary rounded">Custom</span>' : ''}
+                    <span class="text-xs opacity-80 whitespace-nowrap">${Utils.formatCurrency(model.input_price_per_1m)}/${Utils.formatCurrency(model.output_price_per_1m)}</span>
+                    ${isCustom ? `
+                      <button class="edit-custom-model-btn p-0.5 rounded hover:bg-white/20 transition-colors"
+                              data-provider="${model.provider}"
+                              data-model="${model.model}"
+                              title="Edit custom model"
+                              onclick="event.stopPropagation()">
+                        <span class="material-symbols-outlined text-sm ${isSelected ? 'text-white' : 'text-text-light/70 dark:text-text-dark/70'}">edit</span>
+                      </button>
+                      <button class="delete-custom-model-btn p-0.5 rounded hover:bg-white/20 transition-colors"
+                              data-provider="${model.provider}"
+                              data-model="${model.model}"
+                              title="Delete custom model"
+                              onclick="event.stopPropagation()">
+                        <span class="material-symbols-outlined text-sm ${isSelected ? 'text-white' : 'text-red-600 dark:text-red-400'}">delete</span>
+                      </button>
+                    ` : ''}
                   </div>
-                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">
-                    ${Utils.formatCurrency(model.input_price_per_1m)} / ${Utils.formatCurrency(model.output_price_per_1m)} per 1M tokens
-                  </p>
                 </div>
-                ${isCustom ? `
-                  <div class="flex items-center gap-1">
-                    <button class="edit-custom-model-btn p-1.5 rounded hover:bg-primary/10 transition-colors"
-                            data-provider="${model.provider}"
-                            data-model="${model.model}"
-                            title="Edit custom model">
-                      <span class="material-symbols-outlined text-sm text-text-light/70 dark:text-text-dark/70">edit</span>
-                    </button>
-                    <button class="delete-custom-model-btn p-1.5 rounded hover:bg-red-500/10 transition-colors"
-                            data-provider="${model.provider}"
-                            data-model="${model.model}"
-                            title="Delete custom model">
-                      <span class="material-symbols-outlined text-sm text-red-600 dark:text-red-400">delete</span>
-                    </button>
-                  </div>
-                ` : ''}
-              </label>
-            `;
-          }).join('')}
+              `;
+            }).join('')}
+          </div>
         </div>
       `;
     }).join('');
+
+    // Add click event listeners to pills
+    this.setupModelPillListeners();
+  },
+
+  /**
+   * Setup event listeners for model pills
+   */
+  setupModelPillListeners() {
+    document.querySelectorAll('.model-pill').forEach(pill => {
+      pill.addEventListener('click', (e) => {
+        // Don't toggle if clicking on edit/delete buttons
+        if (e.target.closest('.edit-custom-model-btn') || e.target.closest('.delete-custom-model-btn')) {
+          return;
+        }
+
+        const provider = pill.dataset.provider;
+        const modelName = pill.dataset.model;
+        const model = this.models.find(m => m.provider === provider && m.model === modelName);
+
+        if (!model) return;
+
+        const isSelected = this.selectedModels.some(m =>
+          m.provider === provider && m.model === modelName
+        );
+
+        if (isSelected) {
+          this.removeModelFromSelection(provider, modelName);
+        } else {
+          this.addModelToSelection(model);
+        }
+      });
+    });
+  },
+
+  /**
+   * Render provider filter tabs
+   */
+  renderProviderTabs() {
+    const tabsContainer = document.getElementById('provider-tabs');
+    if (!tabsContainer) return;
+
+    const providers = this.getProviders();
+    const providerNames = Object.keys(providers).sort();
+
+    // Calculate model counts per provider
+    const providerCounts = {};
+    providerNames.forEach(name => {
+      providerCounts[name] = providers[name].length;
+    });
+
+    const totalCount = this.models.length;
+
+    tabsContainer.innerHTML = `
+      <button class="provider-tab px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${this.selectedProvider === 'all' ? 'bg-primary text-white' : 'bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark hover:bg-primary/10'}"
+              data-provider="all">
+        All (${totalCount})
+      </button>
+      ${providerNames.map(name => `
+        <button class="provider-tab px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${this.selectedProvider === name ? 'bg-primary text-white' : 'bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark hover:bg-primary/10'}"
+                data-provider="${name}">
+          ${name} (${providerCounts[name]})
+        </button>
+      `).join('')}
+    `;
+
+    // Add event listeners to provider tabs
+    tabsContainer.querySelectorAll('.provider-tab').forEach(tab => {
+      tab.addEventListener('click', (e) => {
+        const provider = e.currentTarget.dataset.provider;
+        this.selectedProvider = provider;
+        this.renderModelSelector();
+      });
+    });
   },
 
   /**
@@ -479,7 +643,8 @@ const App = {
 
     this.selectedModels.push(model);
     this.updateSelectedModelsDisplay();
-    this.updateModelSelectorCheckboxes();
+    this.renderModelSelector(); // Re-render pills with updated selection
+    this.renderSelectedModelsPills(); // Update collapsed view pills
     this.updateDynamicLimits(); // Update limits based on new selection
     this.calculate();
   },
@@ -492,7 +657,8 @@ const App = {
       !(m.provider === provider && m.model === modelName)
     );
     this.updateSelectedModelsDisplay();
-    this.updateModelSelectorCheckboxes();
+    this.renderModelSelector(); // Re-render pills with updated selection
+    this.renderSelectedModelsPills(); // Update collapsed view pills
     this.updateDynamicLimits(); // Update limits based on new selection
     this.calculate();
   },
@@ -621,6 +787,7 @@ const App = {
         sharedInputSlider.value = value;
       }
       this.sharedConfig.inputTokens = value;
+      this.selectPreset('custom'); // Switch to custom when user manually changes
       this.calculate();
     });
 
@@ -630,6 +797,7 @@ const App = {
         sharedInputTokens.value = value;
       }
       this.sharedConfig.inputTokens = value;
+      this.selectPreset('custom'); // Switch to custom when user manually changes
       this.calculate();
     });
 
@@ -643,6 +811,7 @@ const App = {
         sharedOutputSlider.value = value;
       }
       this.sharedConfig.outputTokens = value;
+      this.selectPreset('custom'); // Switch to custom when user manually changes
       this.calculate();
     });
 
@@ -652,58 +821,56 @@ const App = {
         sharedOutputTokens.value = value;
       }
       this.sharedConfig.outputTokens = value;
+      this.selectPreset('custom'); // Switch to custom when user manually changes
       this.calculate();
     });
 
-    // RPM (Requests Per Minute)
-    const sharedRpm = document.getElementById('shared-rpm');
-    const sharedRpmSlider = document.getElementById('shared-rpm-slider');
+    // Requests Per Day
+    const sharedRequestsPerDay = document.getElementById('shared-requests-per-day');
+    const sharedRequestsPerDaySlider = document.getElementById('shared-requests-per-day-slider');
 
-    sharedRpm?.addEventListener('input', (e) => {
+    sharedRequestsPerDay?.addEventListener('input', (e) => {
       const value = parseInt(e.target.value) || 1;
-      if (sharedRpmSlider) {
-        sharedRpmSlider.value = value;
+      if (sharedRequestsPerDaySlider) {
+        sharedRequestsPerDaySlider.value = value;
       }
-      this.sharedConfig.rpm = value;
+      this.sharedConfig.requestsPerDay = value;
+      this.updateRPMFromRequests(); // Convert to RPM based on duration
+      this.selectPreset('custom'); // Switch to custom when user manually changes
       this.updateRuntimeEstimate();
       this.calculate();
     });
 
-    sharedRpmSlider?.addEventListener('input', (e) => {
+    sharedRequestsPerDaySlider?.addEventListener('input', (e) => {
       const value = parseInt(e.target.value) || 1;
-      if (sharedRpm) {
-        sharedRpm.value = value;
+      if (sharedRequestsPerDay) {
+        sharedRequestsPerDay.value = value;
       }
-      this.sharedConfig.rpm = value;
+      this.sharedConfig.requestsPerDay = value;
+      this.updateRPMFromRequests(); // Convert to RPM based on duration
+      this.selectPreset('custom'); // Switch to custom when user manually changes
       this.updateRuntimeEstimate();
       this.calculate();
     });
 
-    // Calculation mode radio buttons
-    document.querySelectorAll('input[name="calc-mode"]').forEach(radio => {
-      radio.addEventListener('change', (e) => {
-        this.sharedConfig.calcMode = e.target.value;
+    // Calculation mode dropdown
+    document.getElementById('calc-mode-select')?.addEventListener('change', (e) => {
+      this.sharedConfig.calcMode = e.target.value;
 
-        // Enable/disable total requests input based on mode
-        const totalRequestsInput = document.getElementById('total-requests-input');
-        const durationSelect = document.getElementById('duration-select');
-
-        if (e.target.value === 'total') {
-          totalRequestsInput?.removeAttribute('disabled');
-          durationSelect?.setAttribute('disabled', 'disabled');
-        } else {
-          totalRequestsInput?.setAttribute('disabled', 'disabled');
-          durationSelect?.removeAttribute('disabled');
-        }
-
-        this.updateRuntimeEstimate();
-        this.calculate();
-      });
+      // Update UI based on mode
+      this.toggleCalcModeContent();
+      this.updateRequestsLabel();
+      this.updateRPMFromRequests();
+      this.updateRuntimeEstimate();
+      this.selectPreset('custom'); // Switch to custom when mode changes
+      this.calculate();
     });
 
-    // Duration selector
-    document.getElementById('duration-select')?.addEventListener('change', (e) => {
-      this.sharedConfig.duration = e.target.value;
+    // Days per month input
+    document.getElementById('days-per-month')?.addEventListener('input', (e) => {
+      const value = parseInt(e.target.value) || 1;
+      this.sharedConfig.daysPerMonth = Math.max(1, Math.min(31, value));
+      this.updateRPMFromRequests(); // Recalculate RPM with new days per month
       this.calculate();
     });
 
@@ -735,46 +902,7 @@ const App = {
       }
     });
 
-    // Model checkboxes
-    document.addEventListener('change', (e) => {
-      if (e.target.classList.contains('model-checkbox')) {
-        const provider = e.target.dataset.provider;
-        const modelName = e.target.dataset.model;
-        const model = this.models.find(m => m.provider === provider && m.model === modelName);
-
-        if (e.target.checked) {
-          this.addModelToSelection(model);
-        } else {
-          this.removeModelFromSelection(provider, modelName);
-        }
-      }
-    });
-
-    // Remove model buttons
-    document.addEventListener('click', (e) => {
-      if (e.target.classList.contains('remove-model-btn') || e.target.closest('.remove-model-btn')) {
-        const btn = e.target.classList.contains('remove-model-btn') ? e.target : e.target.closest('.remove-model-btn');
-        const provider = btn.dataset.provider;
-        const modelName = btn.dataset.model;
-        this.removeModelFromSelection(provider, modelName);
-      }
-    });
-
-    // Model search
-    document.getElementById('model-search')?.addEventListener('input', (e) => {
-      const searchTerm = e.target.value.toLowerCase();
-      document.querySelectorAll('.model-option').forEach(option => {
-        const text = option.textContent.toLowerCase();
-        option.style.display = text.includes(searchTerm) ? '' : 'none';
-      });
-
-      // Hide provider groups if all models are hidden
-      document.querySelectorAll('.provider-group').forEach(group => {
-        const visibleModels = Array.from(group.querySelectorAll('.model-option'))
-          .filter(opt => opt.style.display !== 'none');
-        group.style.display = visibleModels.length > 0 ? '' : 'none';
-      });
-    });
+    // Model pills are handled by setupModelPillListeners() called from renderModelSelector()
 
     // Global unit selection changes
     document.getElementById('global-input-unit')?.addEventListener('change', (e) => {
@@ -792,8 +920,310 @@ const App = {
       const panel = document.getElementById('advanced-panel');
       panel.classList.toggle('hidden');
     });
+
+    // Preset toggle button
+    document.getElementById('preset-toggle')?.addEventListener('click', () => {
+      this.sharedConfig.presetsCollapsed = !this.sharedConfig.presetsCollapsed;
+      this.togglePresetsCollapsed();
+    });
+
+    // Model selector toggle
+    document.getElementById('model-selector-toggle')?.addEventListener('click', () => {
+      this.sharedConfig.modelSelectorCollapsed = !this.sharedConfig.modelSelectorCollapsed;
+      this.toggleModelSelectorCollapsed();
+    });
+
+    // Clear all models button
+    document.getElementById('clear-models-btn')?.addEventListener('click', () => {
+      this.clearAllModels();
+    });
+
+    // Usage preset buttons
+    document.querySelectorAll('.usage-preset-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const button = e.currentTarget;
+        const preset = button.dataset.preset;
+
+        // Handle custom preset (just marks it as selected)
+        if (preset === 'custom') {
+          this.selectPreset('custom');
+          return;
+        }
+
+        // Apply preset values
+        const inputTokens = parseInt(button.dataset.input);
+        const outputTokens = parseInt(button.dataset.output);
+        const requestsPerDay = parseInt(button.dataset.requestsPerDay);
+        const calcMode = button.dataset.calcMode;
+
+        this.applyPreset(preset, inputTokens, outputTokens, requestsPerDay, calcMode);
+      });
+    });
   },
 
+  /**
+   * Apply a usage preset
+   */
+  applyPreset(presetName, inputTokens, outputTokens, requestsPerDay, calcMode) {
+    // Update config
+    this.sharedConfig.inputTokens = inputTokens;
+    this.sharedConfig.outputTokens = outputTokens;
+    this.sharedConfig.requestsPerDay = requestsPerDay;
+    this.sharedConfig.calcMode = calcMode;
+    this.sharedConfig.selectedPreset = presetName;
+
+    // Update UI inputs
+    document.getElementById('shared-input-tokens').value = inputTokens;
+    document.getElementById('shared-input-slider').value = inputTokens;
+    document.getElementById('shared-output-tokens').value = outputTokens;
+    document.getElementById('shared-output-slider').value = outputTokens;
+    document.getElementById('shared-requests-per-day').value = requestsPerDay;
+    document.getElementById('shared-requests-per-day-slider').value = requestsPerDay;
+    document.getElementById('calc-mode-select').value = calcMode;
+
+    // Update UI based on calc mode
+    this.toggleCalcModeContent();
+    this.updateRequestsLabel();
+    this.updateRPMFromRequests(); // Convert to RPM based on calc mode
+
+    // Update preset selection visual state
+    this.selectPreset(presetName);
+
+    // Recalculate
+    this.calculate();
+  },
+
+  /**
+   * Mark a preset as selected
+   */
+  selectPreset(presetName) {
+    this.sharedConfig.selectedPreset = presetName;
+
+    // Update visual state of preset buttons
+    document.querySelectorAll('.usage-preset-btn').forEach(btn => {
+      const btnPreset = btn.dataset.preset;
+      const isSelected = btnPreset === presetName;
+
+      if (isSelected) {
+        btn.classList.add('border-primary/50', 'bg-primary/5', 'dark:bg-primary/10', 'preset-selected');
+        btn.classList.remove('border-border-light', 'dark:border-border-dark');
+
+        // Add checkmark if not already there
+        if (!btn.querySelector('.material-symbols-outlined:last-child')) {
+          const checkmark = document.createElement('span');
+          checkmark.className = 'material-symbols-outlined text-primary text-sm';
+          checkmark.textContent = 'check_circle';
+          btn.querySelector('.flex').appendChild(checkmark);
+        }
+      } else {
+        btn.classList.remove('border-primary/50', 'bg-primary/5', 'dark:bg-primary/10', 'preset-selected');
+        btn.classList.add('border-border-light', 'dark:border-border-dark');
+
+        // Remove checkmark
+        const checkmark = btn.querySelector('.material-symbols-outlined:last-child');
+        if (checkmark && checkmark.textContent === 'check_circle') {
+          checkmark.remove();
+        }
+      }
+    });
+  },
+
+  /**
+   * Toggle visibility of content areas based on calc mode
+   */
+  toggleCalcModeContent() {
+    const rateBasedContent = document.getElementById('rate-based-content');
+    const totalRequestsContent = document.getElementById('total-requests-content');
+    const daysPerMonthContainer = document.getElementById('days-per-month-container');
+
+    if (!rateBasedContent || !totalRequestsContent) return;
+
+    // Toggle between rate-based and total requests input
+    if (this.sharedConfig.calcMode === 'total') {
+      rateBasedContent.classList.add('hidden');
+      totalRequestsContent.classList.remove('hidden');
+    } else {
+      rateBasedContent.classList.remove('hidden');
+      totalRequestsContent.classList.add('hidden');
+    }
+
+    // Hide Active Days per Month for 'month' and 'total' modes (not applicable)
+    if (daysPerMonthContainer) {
+      if (this.sharedConfig.calcMode === 'month' || this.sharedConfig.calcMode === 'total') {
+        daysPerMonthContainer.classList.add('hidden');
+      } else {
+        daysPerMonthContainer.classList.remove('hidden');
+      }
+    }
+  },
+
+  /**
+   * Update requests input label based on selected calc mode
+   */
+  updateRequestsLabel() {
+    const requestsLabel = document.getElementById('requests-label');
+    if (!requestsLabel) return;
+
+    const mode = this.sharedConfig.calcMode;
+    const labelMap = {
+      'minute': 'Requests Per Minute',
+      'hour': 'Requests Per Hour',
+      'day': 'Requests Per Day',
+      'month': 'Requests Per Month'
+    };
+
+    requestsLabel.textContent = labelMap[mode] || 'Requests';
+  },
+
+  /**
+   * Convert requests to RPM based on calc mode
+   */
+  convertRequestsToRPM(requests, mode, daysPerMonth = 30) {
+    switch (mode) {
+      case 'minute':
+        return requests; // Already in RPM
+      case 'hour':
+        return requests / 60;
+      case 'day':
+        return requests / 1440; // 60 * 24
+      case 'month':
+        return requests / (daysPerMonth * 1440); // requests per month / (days * minutes per day)
+      default:
+        return requests / 1440;
+    }
+  },
+
+  /**
+   * Update RPM based on current requests and calc mode
+   */
+  updateRPMFromRequests() {
+    this.sharedConfig.rpm = this.convertRequestsToRPM(
+      this.sharedConfig.requestsPerDay, // This is actually "requests per [period]" now
+      this.sharedConfig.calcMode,
+      this.sharedConfig.daysPerMonth
+    );
+    this.updateRPMDisplay();
+  },
+
+  /**
+   * Update RPM display based on requests per day
+   */
+  updateRPMDisplay() {
+    const rpmDisplay = document.getElementById('rpm-display');
+    if (!rpmDisplay) return;
+
+    const rpm = this.sharedConfig.rpm;
+    rpmDisplay.textContent = `~${rpm.toFixed(2)} RPM`;
+  },
+
+  /**
+   * Toggle collapsed state of usage presets section
+   */
+  togglePresetsCollapsed() {
+    const presetList = document.getElementById('preset-list');
+    const presetDescription = document.getElementById('preset-description');
+    const toggleIcon = document.querySelector('#preset-toggle .material-symbols-outlined:last-child');
+
+    if (!presetList || !toggleIcon) return;
+
+    if (this.sharedConfig.presetsCollapsed) {
+      // Collapsed state - show only selected preset
+      const selectedPreset = this.sharedConfig.selectedPreset;
+      document.querySelectorAll('.usage-preset-btn').forEach(btn => {
+        const btnPreset = btn.dataset.preset;
+        if (btnPreset === selectedPreset) {
+          btn.style.display = '';
+        } else {
+          btn.style.display = 'none';
+        }
+      });
+      if (presetDescription) presetDescription.classList.add('hidden');
+      toggleIcon.textContent = 'expand_more';
+    } else {
+      // Expanded state - show all presets
+      document.querySelectorAll('.usage-preset-btn').forEach(btn => {
+        btn.style.display = '';
+      });
+      if (presetDescription) presetDescription.classList.remove('hidden');
+      toggleIcon.textContent = 'expand_less';
+    }
+  },
+
+  /**
+   * Toggle collapsed state of model selector section
+   */
+  toggleModelSelectorCollapsed() {
+    const modelSelectorPanel = document.getElementById('model-selector-panel');
+    const selectedModelsDisplay = document.getElementById('selected-models-display');
+    const toggleIcon = document.querySelector('#model-selector-toggle .material-symbols-outlined:last-child');
+
+    if (!modelSelectorPanel || !selectedModelsDisplay || !toggleIcon) return;
+
+    if (this.sharedConfig.modelSelectorCollapsed) {
+      // Collapsed state - hide full panel, show only selected models
+      modelSelectorPanel.classList.add('hidden');
+      selectedModelsDisplay.classList.remove('hidden');
+      toggleIcon.textContent = 'expand_more';
+      this.renderSelectedModelsPills();
+    } else {
+      // Expanded state - show full panel, hide selected models display
+      modelSelectorPanel.classList.remove('hidden');
+      selectedModelsDisplay.classList.add('hidden');
+      toggleIcon.textContent = 'expand_less';
+    }
+  },
+
+  /**
+   * Render selected model pills in the collapsed view
+   */
+  renderSelectedModelsPills() {
+    const container = document.getElementById('selected-models-pills');
+    if (!container) return;
+
+    if (this.selectedModels.length === 0) {
+      container.innerHTML = '<p class="text-xs text-text-light/60 dark:text-text-dark/60">No models selected</p>';
+      return;
+    }
+
+    container.innerHTML = this.selectedModels.map(model => {
+      const isCustom = model.isCustom === true;
+      const hasTier = model.tier && !isCustom;
+
+      return `
+        <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-white text-xs border border-primary">
+          <span class="font-medium whitespace-nowrap">${model.model}</span>
+          ${hasTier ? `<span class="material-symbols-outlined text-xs text-white" title="${model.tier}">${model.tierIcon}</span>` : ''}
+          ${isCustom ? `<span class="material-symbols-outlined text-xs text-white" title="Custom Model">build</span>` : ''}
+          <button class="remove-selected-pill-btn ml-1 p-0.5 rounded hover:bg-white/20 transition-colors"
+                  data-provider="${model.provider}"
+                  data-model="${model.model}"
+                  title="Remove model">
+            <span class="material-symbols-outlined text-sm text-white">close</span>
+          </button>
+        </div>
+      `;
+    }).join('');
+
+    // Add event listeners to remove buttons
+    container.querySelectorAll('.remove-selected-pill-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const provider = btn.dataset.provider;
+        const modelName = btn.dataset.model;
+        this.removeModelFromSelection(provider, modelName);
+      });
+    });
+  },
+
+  /**
+   * Clear all selected models
+   */
+  clearAllModels() {
+    this.selectedModels = [];
+    this.renderModelSelector();
+    this.renderSelectedModelsPills();
+    this.calculate();
+  },
 
   /**
    * Update runtime estimate for total requests mode
@@ -806,12 +1236,13 @@ const App = {
       const runtime = this.sharedConfig.totalRequests / this.sharedConfig.rpm;
       const hours = Math.floor(runtime / 60);
       const minutes = Math.floor(runtime % 60);
+      const rpmRounded = this.sharedConfig.rpm.toFixed(2);
 
       let runtimeText = '';
       if (hours > 0) {
-        runtimeText = `Runtime: ~${hours}h ${minutes}m at ${this.sharedConfig.rpm} RPM`;
+        runtimeText = `Runtime: ~${hours}h ${minutes}m at ${rpmRounded} RPM`;
       } else {
-        runtimeText = `Runtime: ~${minutes} minutes at ${this.sharedConfig.rpm} RPM`;
+        runtimeText = `Runtime: ~${minutes} minutes at ${rpmRounded} RPM`;
       }
 
       estimateEl.textContent = runtimeText;
@@ -903,14 +1334,19 @@ const App = {
     const outputTokens = Utils.toTokens(this.sharedConfig.outputTokens, this.globalOutputUnit);
 
     // Create comparisons for each selected model with the shared config
+    // Convert calcMode to mode/duration format for calculator
+    const mode = this.sharedConfig.calcMode === 'total' ? 'total' : 'duration';
+    const duration = this.sharedConfig.calcMode === 'total' ? 'day' : this.sharedConfig.calcMode;
+
     const comparisons = this.selectedModels.map(model => ({
       model,
       inputTokens,
       outputTokens,
       rpm: this.sharedConfig.rpm,
-      calcMode: this.sharedConfig.calcMode,
-      duration: this.sharedConfig.duration,
+      calcMode: mode,
+      duration: duration,
       totalRequests: this.sharedConfig.totalRequests,
+      daysPerMonth: this.sharedConfig.daysPerMonth,
       enabled: true
     }));
 
@@ -1110,211 +1546,38 @@ const App = {
 
   /**
    * Show multi-model bar chart
+   * DEPRECATED: Chart functionality removed to simplify UI
    */
   showMultiModelChart(enabledResults) {
-    document.getElementById('multi-model-chart')?.classList.remove('hidden');
-    document.getElementById('single-model-chart')?.classList.add('hidden');
-
-    const chartContainer = document.getElementById('chart-bars');
-    if (!chartContainer) return;
-
-    if (enabledResults.length === 0) {
-      chartContainer.innerHTML = '<p class="text-text-light/60 dark:text-text-dark/60 text-sm">No data to display</p>';
-      return;
-    }
-
-    const maxCost = Math.max(...enabledResults.map(r => r.totalCost.totalCost));
-
-    chartContainer.innerHTML = enabledResults.map(result => {
-      const heightPercent = maxCost > 0 ? (result.totalCost.totalCost / maxCost * 100) : 0;
-      const isFirst = result === enabledResults[0];
-
-      // Determine quota status
-      const hasErrors = result.validation.warnings.some(w => w.severity === 'error');
-      const hasWarnings = result.validation.warnings.some(w => w.severity === 'warning');
-
-      let quotaIcon = '';
-      let quotaColor = '';
-
-      if (hasErrors) {
-        quotaIcon = 'error';
-        quotaColor = 'text-red-600 dark:text-red-400';
-      } else if (hasWarnings) {
-        quotaIcon = 'warning';
-        quotaColor = 'text-yellow-600 dark:text-yellow-400';
-      } else {
-        quotaIcon = 'check_circle';
-        quotaColor = 'text-green-600 dark:text-green-400';
-      }
-
-      // Calculate overall quota usage for badge
-      const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
-      const requestsPerMinute = this.sharedConfig.rpm;
-      const tokensPerMinute = totalTokens * requestsPerMinute;
-
-      const contextUsage = result.model.context_window ? (totalTokens / result.model.context_window * 100) : 0;
-      const rpmUsage = result.model.rpm_limit ? (requestsPerMinute / result.model.rpm_limit * 100) : 0;
-      const tpmUsage = result.model.tpm_limit ? (tokensPerMinute / result.model.tpm_limit * 100) : 0;
-      const maxUsage = Math.max(contextUsage, rpmUsage, tpmUsage);
-
-      return `
-        <div class="flex flex-col items-center flex-1 h-full" style="min-width: 60px;">
-          <div class="flex flex-col items-center gap-1 mb-2">
-            <span class="material-symbols-outlined text-base ${quotaColor}" title="Quota status">${quotaIcon}</span>
-            <p class="text-xs ${quotaColor} h-4">${maxUsage > 0 ? `${maxUsage.toFixed(0)}%` : ''}</p>
-          </div>
-          <div class="flex-1 w-full flex flex-col justify-end">
-            <div class="w-full ${isFirst ? 'bg-primary' : 'bg-primary/30'} rounded-t-md transition-all duration-300 relative"
-                 style="height: ${heightPercent}%"
-                 title="${result.model.model}: ${Utils.formatCurrency(result.totalCost.totalCost)} | Quota: ${maxUsage.toFixed(0)}%">
-              ${maxUsage > 0 ? `
-                <div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-t from-${hasErrors ? 'red' : hasWarnings ? 'yellow' : 'green'}-500/50 to-transparent"></div>
-              ` : ''}
-            </div>
-          </div>
-          <div class="flex flex-col items-center gap-0.5 mt-2">
-            <p class="text-xs text-text-light/70 dark:text-text-dark/70 text-center truncate w-full px-1">${result.model.model}</p>
-            <p class="text-xs font-medium">${Utils.formatCurrency(result.totalCost.totalCost)}</p>
-          </div>
-        </div>
-      `;
-    }).join('');
+    // Chart rendering removed - all information available in table
+    return;
   },
 
   /**
    * Show single-model pie chart
+   * DEPRECATED: Chart functionality removed to simplify UI
    */
   showSingleModelChart(result) {
-    document.getElementById('multi-model-chart')?.classList.add('hidden');
-    document.getElementById('single-model-chart')?.classList.remove('hidden');
-
-    const pieContainer = document.getElementById('chart-pie');
-    const gaugesContainer = document.getElementById('quota-gauges');
-
-    // Render cost pie chart
-    if (pieContainer) {
-      const inputCost = result.totalCost.totalInputCost;
-      const outputCost = result.totalCost.totalOutputCost;
-      const total = inputCost + outputCost;
-
-      if (total === 0) {
-        pieContainer.innerHTML = '<p class="text-text-light/60 dark:text-text-dark/60 text-sm">No cost data</p>';
-      } else {
-        const inputPercent = (inputCost / total * 100).toFixed(1);
-        const outputPercent = (outputCost / total * 100).toFixed(1);
-
-        // Simple CSS-based pie chart using conic gradient
-        pieContainer.innerHTML = `
-          <div class="flex items-center justify-center gap-4">
-            <div class="relative w-24 h-24 flex-shrink-0">
-              <div class="w-full h-full rounded-full" style="background: conic-gradient(
-                #ffa500 0% ${inputPercent}%,
-                #ffa50050 ${inputPercent}% 100%
-              )"></div>
-              <div class="absolute inset-0 flex items-center justify-center">
-                <div class="w-16 h-16 rounded-full bg-surface-light dark:bg-surface-dark"></div>
-              </div>
-            </div>
-            <div class="flex flex-col gap-2">
-              <div class="flex items-center gap-2">
-                <div class="w-3 h-3 rounded-sm bg-primary flex-shrink-0"></div>
-                <div class="flex-1 min-w-0">
-                  <p class="text-xs font-medium">Input</p>
-                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatCurrency(inputCost)} (${inputPercent}%)</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <div class="w-3 h-3 rounded-sm bg-primary/30 flex-shrink-0"></div>
-                <div class="flex-1 min-w-0">
-                  <p class="text-xs font-medium">Output</p>
-                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">${Utils.formatCurrency(outputCost)} (${outputPercent}%)</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
-      }
-    }
-
-    // Render quota gauges
-    if (gaugesContainer) {
-      this.renderQuotaGauges(gaugesContainer, result);
-    }
+    // Chart rendering removed - all information available in table
+    return;
   },
 
   /**
    * Render radial gauge charts for quota usage
+   * DEPRECATED: Chart functionality removed to simplify UI
    */
   renderQuotaGauges(container, result) {
-    const model = result.model;
-    const totalTokens = result.requestCost.inputTokens + result.requestCost.outputTokens;
-
-    // RPM is now directly available in config
-    const requestsPerMinute = this.sharedConfig.rpm;
-    const tokensPerMinute = totalTokens * requestsPerMinute;
-
-    // Calculate usage percentages
-    const contextUsage = model.context_window ? Math.min((totalTokens / model.context_window * 100), 150) : 0;
-    const rpmUsage = model.rpm_limit ? Math.min((requestsPerMinute / model.rpm_limit * 100), 150) : null;
-    const tpmUsage = model.tpm_limit ? Math.min((tokensPerMinute / model.tpm_limit * 100), 150) : null;
-
-    const gauges = [
-      { label: 'Context', value: contextUsage, max: model.context_window, current: totalTokens },
-      { label: 'RPM', value: rpmUsage, max: model.rpm_limit, current: Math.round(requestsPerMinute) },
-      { label: 'TPM', value: tpmUsage, max: model.tpm_limit, current: Math.round(tokensPerMinute) }
-    ];
-
-    container.innerHTML = gauges.map(gauge => {
-      if (gauge.value === null) {
-        return `
-          <div class="flex flex-col items-center justify-start gap-1.5" style="width: 80px;">
-            <div class="radial-gauge opacity-30">
-              ${this.createRadialGaugeSVG(0, '#9ca3af')}
-            </div>
-            <p class="text-xs font-medium text-text-light/70 dark:text-text-dark/70 text-center">${gauge.label}</p>
-            <p class="text-xs text-text-light/60 dark:text-text-dark/60 text-center">N/A</p>
-          </div>
-        `;
-      }
-
-      const percentage = gauge.value;
-      let color = '#10b981'; // green
-      if (percentage > 100) color = '#ef4444'; // red
-      else if (percentage > 80) color = '#f59e0b'; // yellow
-
-      return `
-        <div class="flex flex-col items-center justify-start gap-1.5" style="width: 80px;">
-          <div class="radial-gauge">
-            ${this.createRadialGaugeSVG(percentage, color)}
-            <div class="radial-gauge-text">
-              <p class="text-sm font-bold" style="color: ${color}">${percentage.toFixed(0)}%</p>
-            </div>
-          </div>
-          <p class="text-xs font-medium text-text-light/70 dark:text-text-dark/70 text-center">${gauge.label}</p>
-          <p class="text-xs text-text-light/60 dark:text-text-dark/60 text-center break-words">${Utils.formatNumber(gauge.current)} / ${Utils.formatNumber(gauge.max)}</p>
-        </div>
-      `;
-    }).join('');
+    // Chart rendering removed - all information available in table
+    return;
   },
 
   /**
    * Create SVG for radial gauge
+   * DEPRECATED: Chart functionality removed to simplify UI
    */
   createRadialGaugeSVG(percentage, color) {
-    const radius = 32;
-    const circumference = 2 * Math.PI * radius;
-    const offset = circumference - (Math.min(percentage, 100) / 100) * circumference;
-
-    return `
-      <svg width="80" height="80" class="radial-gauge-circle">
-        <circle cx="40" cy="40" r="${radius}" stroke-width="6" class="radial-gauge-bg"></circle>
-        <circle cx="40" cy="40" r="${radius}" stroke-width="6"
-                class="radial-gauge-progress"
-                stroke="${color}"
-                stroke-dasharray="${circumference}"
-                stroke-dashoffset="${offset}"></circle>
-      </svg>
-    `;
+    // Chart rendering removed - all information available in table
+    return '';
   },
 
   /**
@@ -1425,48 +1688,72 @@ const App = {
     // Calculate cost per 1K requests for this model
     const costPer1k = (result.totalCost.totalCost / result.totalCost.totalRequests) * 1000;
 
-    // Calculate monthly projection
+    // Calculate enhanced cost metrics
     let monthlyCost = 0;
+    let dailyCost = 0;
+    let yearlyCost = 0;
+
     if (result.totalCost.mode === 'total') {
       // For total mode, show the total cost
       monthlyCost = result.totalCost.totalCost;
+      dailyCost = result.totalCost.totalCost;
+      yearlyCost = result.totalCost.totalCost;
     } else {
-      // Project to monthly based on duration
+      // Project to different time periods based on duration
       switch (result.totalCost.duration) {
-        case 'hour': monthlyCost = result.totalCost.totalCost * 24 * 30; break;
-        case 'day': monthlyCost = result.totalCost.totalCost * 30; break;
-        case 'month': monthlyCost = result.totalCost.totalCost; break;
+        case 'minute':
+          dailyCost = result.totalCost.totalCost * 60 * 24;
+          monthlyCost = dailyCost * this.sharedConfig.daysPerMonth;
+          yearlyCost = monthlyCost * 12;
+          break;
+        case 'hour':
+          dailyCost = result.totalCost.totalCost * 24;
+          monthlyCost = dailyCost * this.sharedConfig.daysPerMonth;
+          yearlyCost = monthlyCost * 12;
+          break;
+        case 'day':
+          dailyCost = result.totalCost.totalCost;
+          monthlyCost = dailyCost * this.sharedConfig.daysPerMonth;
+          yearlyCost = monthlyCost * 12;
+          break;
+        case 'month':
+          monthlyCost = result.totalCost.totalCost;
+          dailyCost = monthlyCost / this.sharedConfig.daysPerMonth;
+          yearlyCost = monthlyCost * 12;
+          break;
       }
     }
 
+    // Calculate cost distribution percentages
+    const totalCost = result.totalCost.totalInputCost + result.totalCost.totalOutputCost;
+    const inputPercentage = totalCost > 0 ? (result.totalCost.totalInputCost / totalCost * 100) : 0;
+    const outputPercentage = totalCost > 0 ? (result.totalCost.totalOutputCost / totalCost * 100) : 0;
+
     // Build calculation basis text
     let calculationBasis = '';
+    const rpmRounded = parseFloat(result.totalCost.rpm).toFixed(2);
+
     if (result.totalCost.mode === 'total') {
       calculationBasis = `${Utils.formatNumber(result.totalCost.totalRequests)} total requests`;
       if (result.totalCost.runtimeMinutes) {
         const hours = Math.floor(result.totalCost.runtimeMinutes / 60);
         const minutes = Math.floor(result.totalCost.runtimeMinutes % 60);
         if (hours > 0) {
-          calculationBasis += ` (~${hours}h ${minutes}m at ${result.totalCost.rpm} RPM)`;
+          calculationBasis += ` (~${hours}h ${minutes}m at ${rpmRounded} RPM)`;
         } else {
-          calculationBasis += ` (~${minutes} minutes at ${result.totalCost.rpm} RPM)`;
+          calculationBasis += ` (~${minutes} minutes at ${rpmRounded} RPM)`;
         }
       }
     } else {
-      calculationBasis = `${result.totalCost.rpm} RPM × ${result.totalCost.duration} = ${Utils.formatNumber(result.totalCost.totalRequests)} requests`;
+      // For duration mode, show days if it's a month calculation
+      const durationDisplay = result.totalCost.duration === 'month'
+        ? `${result.totalCost.duration} (${this.sharedConfig.daysPerMonth} days)`
+        : result.totalCost.duration;
+      calculationBasis = `${rpmRounded} RPM × ${durationDisplay} = ${Utils.formatNumber(result.totalCost.totalRequests)} requests`;
     }
 
     return `
       <div class="p-6 bg-background-light/50 dark:bg-background-dark/50">
-        <!-- Calculation Basis Banner -->
-        <div class="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-          <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-primary text-sm">calculate</span>
-            <span class="text-xs font-medium text-text-light/80 dark:text-text-dark/80">Calculation Basis:</span>
-            <span class="text-xs font-semibold text-primary">${calculationBasis}</span>
-          </div>
-        </div>
-
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <!-- Cost Details -->
           <div class="md:col-span-2">
@@ -1480,6 +1767,19 @@ const App = {
                 <span class="text-text-light/70 dark:text-text-dark/70">Output Cost:</span>
                 <span class="font-medium">${result.totalCost.totalOutputTokens.toLocaleString()} tokens × ${Utils.formatCurrency(result.model.output_price_per_1m)}/1M = ${Utils.formatCurrency(result.totalCost.totalOutputCost)}</span>
               </div>
+
+              <!-- Cost Distribution Bar -->
+              <div class="pt-2">
+                <div class="flex justify-between text-xs mb-1">
+                  <span class="text-text-light/70 dark:text-text-dark/70">Cost Distribution</span>
+                  <span class="text-text-light/60 dark:text-text-dark/60">Input ${inputPercentage.toFixed(0)}% / Output ${outputPercentage.toFixed(0)}%</span>
+                </div>
+                <div class="flex h-3 rounded-full overflow-hidden bg-border-light dark:bg-border-dark">
+                  <div class="bg-blue-500 dark:bg-blue-600 transition-all" style="width: ${inputPercentage}%" title="Input: ${inputPercentage.toFixed(1)}%"></div>
+                  <div class="bg-green-500 dark:bg-green-600 transition-all" style="width: ${outputPercentage}%" title="Output: ${outputPercentage.toFixed(1)}%"></div>
+                </div>
+              </div>
+
               <div class="flex justify-between pt-2 border-t border-border-light dark:border-border-dark">
                 <span class="text-text-light/70 dark:text-text-dark/70">Cost per Request:</span>
                 <span class="font-medium">${Utils.formatCurrency(result.totalCost.costPerRequest)}</span>
@@ -1488,11 +1788,35 @@ const App = {
                 <span class="text-text-light/70 dark:text-text-dark/70">Cost per 1K Requests:</span>
                 <span class="font-medium">${Utils.formatCurrency(costPer1k)}</span>
               </div>
-              <div class="flex justify-between">
-                <span class="text-text-light/70 dark:text-text-dark/70">${result.totalCost.mode === 'total' ? 'Total Cost:' : 'Monthly Projection:'}</span>
-                <span class="font-medium">${Utils.formatCurrency(monthlyCost)}</span>
-              </div>
             </div>
+
+            <!-- Enhanced Cost Projections -->
+            ${result.totalCost.mode !== 'total' ? `
+              <div class="mt-4 pt-4 border-t border-border-light dark:border-border-dark">
+                <h4 class="font-semibold text-sm mb-3 text-primary">Cost Projections</h4>
+                <div class="grid grid-cols-3 gap-4">
+                  <div class="text-center p-3 rounded-lg bg-background-light dark:bg-background-dark">
+                    <p class="text-xs text-text-light/60 dark:text-text-dark/60 mb-1">Daily Average</p>
+                    <p class="text-sm font-semibold text-primary">${Utils.formatCurrency(dailyCost)}</p>
+                  </div>
+                  <div class="text-center p-3 rounded-lg bg-background-light dark:bg-background-dark">
+                    <p class="text-xs text-text-light/60 dark:text-text-dark/60 mb-1">Monthly (${this.sharedConfig.daysPerMonth}d)</p>
+                    <p class="text-sm font-semibold text-primary">${Utils.formatCurrency(monthlyCost)}</p>
+                  </div>
+                  <div class="text-center p-3 rounded-lg bg-background-light dark:bg-background-dark">
+                    <p class="text-xs text-text-light/60 dark:text-text-dark/60 mb-1">Yearly (12mo)</p>
+                    <p class="text-sm font-semibold text-primary">${Utils.formatCurrency(yearlyCost)}</p>
+                  </div>
+                </div>
+              </div>
+            ` : `
+              <div class="mt-4 pt-4 border-t border-border-light dark:border-border-dark">
+                <div class="flex justify-between">
+                  <span class="text-text-light/70 dark:text-text-dark/70">Total Cost:</span>
+                  <span class="font-medium">${Utils.formatCurrency(result.totalCost.totalCost)}</span>
+                </div>
+              </div>
+            `}
           </div>
 
           <!-- Quota Usage -->
@@ -1555,6 +1879,38 @@ const App = {
    * Setup event listeners for expandable table rows
    */
   setupExpandableRows() {
+    const expandableRows = document.querySelectorAll('.expandable-row');
+
+    // Auto-expand first row if only one model selected, or if it's the default GPT-5 model
+    if (expandableRows.length === 1) {
+      // Only one model - auto-expand it
+      const rowId = expandableRows[0].dataset.rowId;
+      const content = document.getElementById(`${rowId}-content`);
+      const icon = document.querySelector(`.expand-icon[data-row-id="${rowId}"]`);
+
+      if (content && icon) {
+        content.classList.add('open');
+        icon.classList.add('rotated');
+        icon.textContent = 'expand_less';
+      }
+    } else if (expandableRows.length > 1 && this.currentResults) {
+      // Multiple models - check if GPT-5 is among them and auto-expand it
+      const gpt5Result = this.currentResults.find(r => r.model.model === 'GPT-5');
+      if (gpt5Result) {
+        const gpt5Index = this.currentResults.indexOf(gpt5Result);
+        const rowId = `row-${gpt5Index}`;
+        const content = document.getElementById(`${rowId}-content`);
+        const icon = document.querySelector(`.expand-icon[data-row-id="${rowId}"]`);
+
+        if (content && icon) {
+          content.classList.add('open');
+          icon.classList.add('rotated');
+          icon.textContent = 'expand_less';
+        }
+      }
+    }
+
+    // Add click event listeners for toggling
     document.querySelectorAll('.expandable-row, .expand-icon').forEach(element => {
       element.addEventListener('click', (e) => {
         const rowId = element.dataset.rowId || e.target.dataset.rowId;
@@ -1594,7 +1950,6 @@ const App = {
     const maxThroughputDetailEl = document.getElementById('max-throughput-detail');
     const avgUtilizationEl = document.getElementById('avg-utilization');
     const avgUtilizationDetailEl = document.getElementById('avg-utilization-detail');
-    const chartContainer = document.getElementById('chart-bars');
     const tbody = document.getElementById('comparison-table-body');
 
     if (totalCostEl) totalCostEl.textContent = '$0.00';
@@ -1606,7 +1961,6 @@ const App = {
       avgUtilizationEl.className = 'text-2xl font-bold';
     }
     if (avgUtilizationDetailEl) avgUtilizationDetailEl.textContent = 'No models selected';
-    if (chartContainer) chartContainer.innerHTML = '<p class="text-text-light/60 dark:text-text-dark/60 text-sm">Select models to compare</p>';
     if (tbody) {
       tbody.innerHTML = `
         <tr>
@@ -1616,10 +1970,6 @@ const App = {
         </tr>
       `;
     }
-
-    // Show multi-model chart container by default
-    document.getElementById('multi-model-chart')?.classList.remove('hidden');
-    document.getElementById('single-model-chart')?.classList.add('hidden');
   },
 
   /**
@@ -1633,35 +1983,41 @@ const App = {
     this.sharedConfig = {
       inputTokens: 5000,
       outputTokens: 1500,
-      rpm: 20,
-      calcMode: 'duration',
-      duration: 'day',
-      totalRequests: 100
+      requestsPerDay: 100,
+      rpm: 100 / 1440, // Calculated from requestsPerDay
+      calcMode: 'day', // 'minute', 'hour', 'day', 'month', or 'total'
+      totalRequests: 100,
+      daysPerMonth: 30,
+      selectedPreset: 'custom',
+      presetsCollapsed: true,
+      modelSelectorCollapsed: true
     };
+
+    // Reset provider filter
+    this.selectedProvider = 'all';
 
     // Reset UI inputs
     const sharedInputTokens = document.getElementById('shared-input-tokens');
     const sharedInputSlider = document.getElementById('shared-input-slider');
     const sharedOutputTokens = document.getElementById('shared-output-tokens');
     const sharedOutputSlider = document.getElementById('shared-output-slider');
-    const sharedRpm = document.getElementById('shared-rpm');
-    const sharedRpmSlider = document.getElementById('shared-rpm-slider');
-    const calcModeDuration = document.getElementById('calc-mode-duration');
-    const durationSelect = document.getElementById('duration-select');
+    const sharedRequestsPerDay = document.getElementById('shared-requests-per-day');
+    const sharedRequestsPerDaySlider = document.getElementById('shared-requests-per-day-slider');
+    const calcModeSelect = document.getElementById('calc-mode-select');
     const totalRequestsInput = document.getElementById('total-requests-input');
 
     if (sharedInputTokens) sharedInputTokens.value = 5000;
     if (sharedInputSlider) sharedInputSlider.value = 5000;
     if (sharedOutputTokens) sharedOutputTokens.value = 1500;
     if (sharedOutputSlider) sharedOutputSlider.value = 1500;
-    if (sharedRpm) sharedRpm.value = 20;
-    if (sharedRpmSlider) sharedRpmSlider.value = 20;
-    if (calcModeDuration) calcModeDuration.checked = true;
-    if (durationSelect) durationSelect.value = 'day';
-    if (totalRequestsInput) {
-      totalRequestsInput.value = 100;
-      totalRequestsInput.disabled = true;
-    }
+    if (sharedRequestsPerDay) sharedRequestsPerDay.value = 100;
+    if (sharedRequestsPerDaySlider) sharedRequestsPerDaySlider.value = 100;
+    if (calcModeSelect) calcModeSelect.value = 'day';
+    if (totalRequestsInput) totalRequestsInput.value = 100;
+
+    // Reset days per month
+    const daysPerMonth = document.getElementById('days-per-month');
+    if (daysPerMonth) daysPerMonth.value = 30;
 
     // Reset unit selectors
     const globalInputUnit = document.getElementById('global-input-unit');
@@ -1675,19 +2031,19 @@ const App = {
       this.globalOutputUnit = 'tokens';
     }
 
-    // Clear model search
-    const searchInput = document.getElementById('model-search');
-    if (searchInput) {
-      searchInput.value = '';
-      // Show all model options
-      document.querySelectorAll('.model-option').forEach(opt => opt.style.display = '');
-      document.querySelectorAll('.provider-group').forEach(group => group.style.display = '');
-    }
-
     // Update displays
     this.updateSelectedModelsDisplay();
-    this.updateModelSelectorCheckboxes();
     this.clearResults();
+    this.updateRPMDisplay();
+    this.renderModelSelector(); // Re-render pills to reset provider filter and selection
+
+    // Reset UI state
+    this.selectPreset('custom');
+    this.toggleCalcModeContent();
+    this.updateRequestsLabel();
+    this.togglePresetsCollapsed();
+    this.toggleModelSelectorCollapsed();
+    this.renderSelectedModelsPills();
 
     // Reinitialize with default model
     const gpt5 = this.models.find(m => m.model === 'GPT-5');

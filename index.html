@@ -76,13 +76,119 @@
     <div class="grid grid-cols-1 lg:grid-cols-6 gap-8">
       <!-- Left Column: Inputs -->
       <div class="lg:col-span-2 flex flex-col gap-6">
+        <!-- Usage Pattern Presets -->
+        <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
+          <button id="preset-toggle" class="flex items-center justify-between w-full mb-4 cursor-pointer">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary">auto_awesome</span>
+              <h3 class="font-bold text-lg">Usage Presets</h3>
+            </div>
+            <span class="material-symbols-outlined text-text-light/40 dark:text-text-dark/40">expand_more</span>
+          </button>
+          <p id="preset-description" class="text-xs text-text-light/60 dark:text-text-dark/60 mb-4 hidden">Select a common use case to automatically configure parameters</p>
+
+          <div id="preset-list" class="grid grid-cols-1 gap-3">
+            <!-- Customer Support Preset -->
+            <button class="usage-preset-btn text-left p-3 rounded-lg border-2 border-border-light dark:border-border-dark hover:border-primary/50 hover:bg-background-light dark:hover:bg-background-dark transition-all"
+                    data-preset="support"
+                    data-input="400"
+                    data-output="200"
+                    data-requests-per-day="1000"
+                    data-calc-mode="day">
+              <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-primary mt-0.5">support_agent</span>
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-sm">Customer Support</p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">400 in / 200 out • 1,000 req/day</p>
+                </div>
+              </div>
+            </button>
+
+            <!-- Content Generation Preset -->
+            <button class="usage-preset-btn text-left p-3 rounded-lg border-2 border-border-light dark:border-border-dark hover:border-primary/50 hover:bg-background-light dark:hover:bg-background-dark transition-all"
+                    data-preset="content"
+                    data-input="300"
+                    data-output="1000"
+                    data-requests-per-day="100"
+                    data-calc-mode="day">
+              <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-primary mt-0.5">edit_note</span>
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-sm">Content Generation</p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">300 in / 1000 out • 100 req/day</p>
+                </div>
+              </div>
+            </button>
+
+            <!-- Data Analysis Preset -->
+            <button class="usage-preset-btn text-left p-3 rounded-lg border-2 border-border-light dark:border-border-dark hover:border-primary/50 hover:bg-background-light dark:hover:bg-background-dark transition-all"
+                    data-preset="analysis"
+                    data-input="3000"
+                    data-output="500"
+                    data-requests-per-day="50"
+                    data-calc-mode="day">
+              <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-primary mt-0.5">analytics</span>
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-sm">Data Analysis</p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">3000 in / 500 out • 50 req/day</p>
+                </div>
+              </div>
+            </button>
+
+            <!-- Document Summarization Preset -->
+            <button class="usage-preset-btn text-left p-3 rounded-lg border-2 border-border-light dark:border-border-dark hover:border-primary/50 hover:bg-background-light dark:hover:bg-background-dark transition-all"
+                    data-preset="summarization"
+                    data-input="10000"
+                    data-output="800"
+                    data-requests-per-day="20"
+                    data-calc-mode="day">
+              <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-primary mt-0.5">summarize</span>
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-sm">Document Summarization</p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">10k in / 800 out • 20 req/day</p>
+                </div>
+              </div>
+            </button>
+
+            <!-- Code Assistant Preset -->
+            <button class="usage-preset-btn text-left p-3 rounded-lg border-2 border-border-light dark:border-border-dark hover:border-primary/50 hover:bg-background-light dark:hover:bg-background-dark transition-all"
+                    data-preset="code"
+                    data-input="2000"
+                    data-output="1500"
+                    data-requests-per-day="150"
+                    data-calc-mode="day">
+              <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-primary mt-0.5">code</span>
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-sm">Code Assistant</p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">2000 in / 1500 out • 150 req/day</p>
+                </div>
+              </div>
+            </button>
+
+            <!-- Custom Preset -->
+            <button class="usage-preset-btn text-left p-3 rounded-lg border-2 border-border-light dark:border-border-dark hover:border-primary/50 hover:bg-background-light dark:hover:bg-background-dark transition-all"
+                    data-preset="custom">
+              <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-primary mt-0.5">settings</span>
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-sm">Custom Configuration</p>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">Define your own parameters</p>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+
         <!-- Usage Input Card -->
         <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
           <div class="flex items-center gap-2 mb-4">
             <span class="material-symbols-outlined text-primary">tune</span>
             <h3 class="font-bold text-lg">Usage Parameters</h3>
           </div>
-          <p class="text-xs text-text-light/60 dark:text-text-dark/60 mb-4">These settings apply to all selected models for fair comparison</p>
+          <p class="text-xs text-text-light/60 dark:text-text-dark/60 mb-4">These settings apply to all selected models</p>
 
           <div class="space-y-5">
             <!-- Average Prompt Tokens -->
@@ -103,47 +209,49 @@
               <input type="range" id="shared-output-slider" value="1500" min="1" max="10000" step="1" aria-label="Average Output Tokens slider" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
             </div>
 
-            <!-- Requests Per Minute (RPM) -->
-            <div class="flex flex-col gap-2">
-              <label class="flex items-center justify-between">
-                <span class="text-sm font-medium">Requests Per Minute (RPM)</span>
-                <input type="number" id="shared-rpm" value="20" min="1" max="250" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
-              </label>
-              <input type="range" id="shared-rpm-slider" value="20" min="1" max="250" step="1" aria-label="Requests Per Minute slider" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
-              <p class="text-xs text-text-light/60 dark:text-text-dark/60">Request rate for throughput validation (max: <span id="rpm-limit-display">250</span>)</p>
-            </div>
-
             <!-- Cost Calculation Mode -->
-            <div class="flex flex-col gap-3 pt-3 border-t border-border-light/50 dark:border-border-dark/50">
-              <label class="text-sm font-medium">Calculate cost for:</label>
+            <div class="flex flex-col gap-4 pt-3 border-t border-border-light/50 dark:border-border-dark/50">
+              <div>
+                <label class="block text-sm font-medium mb-2">Calculate cost for:</label>
+                <select id="calc-mode-select" aria-label="Calculation mode" class="form-select w-full text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary">
+                  <option value="minute">Per Minute (advanced - for quota validation)</option>
+                  <option value="hour">Per Hour</option>
+                  <option value="day" selected>Per Day (recommended)</option>
+                  <option value="month">Per Month</option>
+                  <option value="total">Total Requests (fixed volume)</option>
+                </select>
+              </div>
 
-              <!-- Duration Mode -->
-              <div class="flex items-start gap-3">
-                <input type="radio" id="calc-mode-duration" name="calc-mode" value="duration" checked class="mt-1 accent-primary"/>
-                <div class="flex-1 flex flex-col gap-2">
-                  <label for="calc-mode-duration" class="text-sm cursor-pointer">
-                    <span class="font-medium">Duration</span>
-                    <span class="text-text-light/60 dark:text-text-dark/60"> - Cost for RPM over time</span>
+              <!-- Dynamic content area -->
+              <div id="calc-content-area">
+                <!-- Rate-based input (shown for minute/hour/day/month) -->
+                <div id="rate-based-content" class="flex flex-col gap-2">
+                  <label class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-text-light/70 dark:text-text-dark/70" id="requests-label">Requests Per Day</span>
+                    <input type="number" id="shared-requests-per-day" value="100" min="1" max="1000000" step="1" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
                   </label>
-                  <select id="duration-select" aria-label="Duration for cost calculation" class="form-select w-full text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary">
-                    <option value="hour">Per Hour</option>
-                    <option value="day" selected>Per Day</option>
-                    <option value="month">Per Month</option>
-                  </select>
+                  <input type="range" id="shared-requests-per-day-slider" value="100" min="1" max="10000" step="1" aria-label="Requests slider" class="w-full h-2 bg-border-light dark:bg-border-dark rounded-lg appearance-none cursor-pointer accent-primary"/>
+                  <p class="text-xs text-text-light/60 dark:text-text-dark/60">
+                    <span id="rpm-display">~0.07 RPM</span> • For throughput validation (max: <span id="rpm-limit-display">250</span> RPM)
+                  </p>
+                </div>
+
+                <!-- Total requests input (shown for total mode) -->
+                <div id="total-requests-content" class="hidden flex flex-col gap-2">
+                  <label class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-text-light/70 dark:text-text-dark/70">Total Requests</span>
+                    <input type="number" id="total-requests-input" value="100" min="1" max="10000000" step="1" class="w-24 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
+                  </label>
                 </div>
               </div>
 
-              <!-- Total Requests Mode -->
-              <div class="flex items-start gap-3">
-                <input type="radio" id="calc-mode-total" name="calc-mode" value="total" class="mt-1 accent-primary"/>
-                <div class="flex-1 flex flex-col gap-2">
-                  <label for="calc-mode-total" class="text-sm cursor-pointer">
-                    <span class="font-medium">Total Requests</span>
-                    <span class="text-text-light/60 dark:text-text-dark/60"> - Cost for fixed volume</span>
-                  </label>
-                  <input type="number" id="total-requests-input" value="100" min="1" max="10000000" step="1" aria-label="Total number of requests" class="w-full text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary disabled:opacity-50" disabled/>
-                  <p class="text-xs text-text-light/60 dark:text-text-dark/60" id="runtime-estimate">Runtime: ~100 minutes at 100 RPM</p>
-                </div>
+              <!-- Active Days per Month - Conditional visibility -->
+              <div id="days-per-month-container">
+                <label class="flex items-center justify-between">
+                  <span class="text-xs font-medium text-text-light/70 dark:text-text-dark/70">Active Days per Month</span>
+                  <input type="number" id="days-per-month" value="30" min="1" max="31" class="w-20 text-sm px-3 py-1.5 rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
+                </label>
+                <p class="text-xs text-text-light/60 dark:text-text-dark/60 mt-1">Used for monthly cost projections (e.g., 22 for 5-day work week)</p>
               </div>
             </div>
           </div>
@@ -205,44 +313,23 @@
           </div>
         </div>
 
-        <!-- Model Selection Panel -->
-        <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark">
-          <div class="flex items-center justify-between mb-4">
-            <div class="flex items-center gap-2">
-              <span class="material-symbols-outlined text-primary">compare_arrows</span>
-              <h3 class="font-bold text-lg">Model Selection</h3>
-            </div>
-            <button id="add-custom-model-btn" class="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors" title="Add custom model with your own pricing">
-              <span class="material-symbols-outlined text-sm">add</span>
-              <span>Custom Model</span>
-            </button>
-          </div>
-          <p class="text-xs text-text-light/60 dark:text-text-dark/60 mb-4">Select multiple models to compare (you can choose multiple models from the same provider)</p>
-
-          <!-- Model Search/Filter -->
-          <div class="mb-4">
-            <div class="relative">
-              <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-light/40 dark:text-text-dark/40 text-lg">search</span>
-              <input type="text" id="model-search" placeholder="Search models..." class="w-full pl-10 pr-3 py-2 text-sm rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary"/>
-            </div>
-          </div>
-
-          <!-- Selected Models Display -->
-          <div id="selected-models" class="mb-4 flex flex-wrap gap-2 min-h-[2.5rem] p-2 rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark">
-            <p class="text-xs text-text-light/60 dark:text-text-dark/60 m-auto">No models selected</p>
-          </div>
-
-          <!-- Model Selection Dropdown/List -->
-          <div id="model-selector" class="max-h-80 overflow-y-auto border border-border-light dark:border-border-dark rounded-lg bg-background-light dark:bg-background-dark">
-            <!-- Models will be populated here grouped by provider -->
-          </div>
-        </div>
-
         <!-- Action Buttons -->
-        <div class="flex gap-4">
+        <div class="flex flex-col gap-3">
           <button id="reset-btn" class="w-full bg-border-light dark:bg-border-dark hover:bg-border-light/70 dark:hover:bg-border-dark/70 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors">
             Reset
           </button>
+
+          <!-- Export Buttons -->
+          <div class="flex gap-2">
+            <button id="export-csv-btn" class="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-xs text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Export results to CSV">
+              <span class="material-symbols-outlined icon-download text-sm">download</span>
+              <span>Export CSV</span>
+            </button>
+            <button id="export-pdf-btn" class="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-xs text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Export results to PDF">
+              <span class="material-symbols-outlined icon-pdf text-sm">picture_as_pdf</span>
+              <span>Export PDF</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -276,30 +363,47 @@
             </div>
           </div>
 
-          <!-- Charts Container -->
-          <div id="multi-model-chart" class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark mb-8">
-            <!-- <h3 class="font-medium mb-6">Cost Comparison per Model</h3> -->
-            <div id="chart-bars" class="flex items-end gap-6 h-48">
-              <p class="text-text-light/60 dark:text-text-dark/60 text-sm">Select models to compare</p>
-            </div>
-          </div>
+          <!-- Model Selection Panel -->
+          <div class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark mb-8">
+            <button id="model-selector-toggle" class="flex items-center justify-between w-full mb-4 cursor-pointer">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">compare_arrows</span>
+                <h3 class="font-bold text-lg">Model Selection</h3>
+              </div>
+              <span class="material-symbols-outlined text-text-light/40 dark:text-text-dark/40">expand_more</span>
+            </button>
 
-          <div id="single-model-chart" class="p-6 rounded-xl bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark hidden mb-8">
-            <!-- <h3 class="font-medium mb-6">Cost & Quota Breakdown</h3> -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <!-- Cost Breakdown Pie Chart -->
-              <div>
-                <h4 class="text-sm font-medium text-text-light/70 dark:text-text-dark/70 mb-4">Cost Distribution</h4>
-                <div id="chart-pie" class="flex items-center justify-center">
-                  <canvas id="pie-canvas"></canvas>
+            <!-- Selected Models Display (shown when collapsed) -->
+            <div id="selected-models-display" class="hidden mb-4">
+              <div class="flex flex-wrap gap-2" id="selected-models-pills">
+                <!-- Selected model pills will be displayed here -->
+              </div>
+            </div>
+
+            <!-- Full Model Selector (shown when expanded) -->
+            <div id="model-selector-panel">
+              <div class="flex items-center justify-between mb-4">
+                <p class="text-xs text-text-light/60 dark:text-text-dark/60">Select multiple models to compare</p>
+                <div class="flex items-center gap-2">
+                  <button id="clear-models-btn" class="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-border-light dark:bg-border-dark text-text-light dark:text-text-dark rounded-lg hover:bg-border-light/70 dark:hover:bg-border-dark/70 transition-colors" title="Clear all selected models">
+                    <span class="material-symbols-outlined text-sm">clear_all</span>
+                    <span>Clear All</span>
+                  </button>
+                  <button id="add-custom-model-btn" class="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors" title="Add custom model with your own pricing">
+                    <span class="material-symbols-outlined text-sm">add</span>
+                    <span>Custom Model</span>
+                  </button>
                 </div>
               </div>
-              <!-- Quota Usage Gauges -->
-              <div>
-                <h4 class="text-sm font-medium text-text-light/70 dark:text-text-dark/70 mb-4">Quota Usage</h4>
-                <div id="quota-gauges" class="flex items-start justify-around gap-4 flex-wrap">
-                  <!-- Gauges will be populated here -->
-                </div>
+
+              <!-- Provider Tabs -->
+              <div class="mb-4 flex flex-wrap gap-2 pb-2 border-b border-border-light dark:border-border-dark" id="provider-tabs">
+                <!-- Tabs will be populated dynamically -->
+              </div>
+
+              <!-- Model Selection Pills -->
+              <div id="model-selector" class="max-h-96 overflow-y-auto p-4 border border-border-light dark:border-border-dark rounded-lg bg-background-light dark:bg-background-dark">
+                <!-- Models will be populated here grouped by provider -->
               </div>
             </div>
           </div>
@@ -325,18 +429,6 @@
                 </tr>
               </tbody>
             </table>
-          </div>
-
-          <!-- Export Buttons -->
-          <div class="flex justify-end gap-3">
-            <button id="export-csv-btn" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-xs text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Export results to CSV">
-              <span class="material-symbols-outlined icon-download">download</span>
-              <span>Export CSV</span>
-            </button>
-            <button id="export-pdf-btn" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-xs text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title="Export results to PDF">
-              <span class="material-symbols-outlined icon-pdf">picture_as_pdf</span>
-              <span>Export PDF</span>
-            </button>
           </div>
         </div>
       </div>
